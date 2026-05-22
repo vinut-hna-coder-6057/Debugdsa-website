@@ -1,0 +1,140 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.challenge-title {
+  font-size: 38px;
+  font-weight: bold;
+  color: #6a0dad;
+  margin-bottom: 20px;
+}
+
+.solution-card {
+  background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+  padding: 20px;
+  border-radius: 18px;
+  margin-bottom: 20px;
+  color: white;
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.solution-card.best {
+  border: 2px solid #6a0dad;
+  transform: scale(1.02);
+}
+
+.best-badge {
+  position: absolute;
+  top: -10px;
+  right: 20px;
+  background: #6a0dad;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.solution-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.complexity-box {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.code-preview {
+  background: #111;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  overflow-x: auto;
+}
+
+.ai-explanation {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.live-container {
+  margin-bottom: 30px;
+}
+
+.live-title {
+  font-size: 24px;
+  color: #6a0dad;
+}
+
+.live-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.request-btn, .help-btn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  background: #6a0dad;
+  color: white;
+  cursor: pointer;
+}
+
+.session-modal {
+  margin-top: 20px;
+  padding: 20px;
+  background: #2a2a40;
+  border-radius: 15px;
+}
+
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #6a0dad;
+  border-top: 4px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

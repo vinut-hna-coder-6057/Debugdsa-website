@@ -1,0 +1,17 @@
+:root {
+  --bg-black: #0f0f12;
+  --sidebar-black: #16161a;
+  --violet-primary: #8b5cf6;
+  --violet-hover: #a78bfa;
+  --text-main: #e2e8f0;
+  --text-dim: #94a3b8;
+  --card-bg: #1e1e26;
+  --border-color: #2d2d39;
+}
+
+body{
+  margin:0;
+  background: var(--bg-black);
+  color: var(--text-main);
+  font-family: Inter, system-ui;
+}
