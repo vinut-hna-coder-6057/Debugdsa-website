@@ -373,7 +373,7 @@ This project is licensed under the MIT License.
 
 <div align="center">
 
-Made with ❤️ using MERN Stack + AI
+Made with  using MERN Stack + AI
 
 ⭐ Star this repository if you found it useful!
 
