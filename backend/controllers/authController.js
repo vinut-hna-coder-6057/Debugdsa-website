@@ -254,9 +254,7 @@ Date.now() + 15 * 60 * 1000;
 
 await user.save();
 
-const resetUrl =
-`http://192.168.0.9:3000/reset-password/${resetToken}`;
-
+const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 const message = `
 <h2>Password Reset</h2>
 
