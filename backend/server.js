@@ -44,9 +44,13 @@ const server = createServer(app);
 // SOCKET.IO SETUP
 //////////////////////////////////////////////////
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:3000"];
+
 const io = new Server(server, {
   cors: {
-    origin: true,
+    origin: allowedOrigins,
     credentials: true
   }
 });
@@ -107,7 +111,13 @@ app.use("/api", limiter);
 //////////////////////////////////////////////////
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin} is not allowed`));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
