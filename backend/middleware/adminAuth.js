@@ -1,12 +1,15 @@
 import jwt from "jsonwebtoken";
 
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined. Server cannot start securely.");
+}
 const adminAuth = (req, res, next) => {
 
   try {
 
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
+    if (!authHeader || (!authHeader.startsWith("Bearer ")) ){
       return res.status(401).json({
         success: false,
         message: "Admin token missing"
@@ -15,10 +18,7 @@ const adminAuth = (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "secret123"
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== "admin") {
       return res.status(403).json({
