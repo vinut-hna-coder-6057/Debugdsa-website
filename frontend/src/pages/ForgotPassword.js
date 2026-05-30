@@ -20,9 +20,11 @@ try {
 
 setLoading(true);
 
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
 const res = await axios.post(
-"http://192.168.0.9:5000/api/auth/forgot-password",
-{ email }
+  `${API_BASE}/auth/forgot-password`,
+  { email }
 );
 
 setMessage(res.data.message);
