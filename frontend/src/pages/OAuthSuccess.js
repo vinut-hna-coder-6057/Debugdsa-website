@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -7,20 +8,26 @@ function OAuthSuccess() {
 
   useEffect(() => {
 
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const verifyOAuth = async () => {
+  try {
 
-    if (token) {
+    const res = await axios.get(
+      `${process.env.REACT_APP_API}/auth/me`,
+      { withCredentials: true }
+    );
 
-      localStorage.setItem("token", token);
-
+    if (res.data.user) {
       navigate("/dashboard");
-
     } else {
-
       navigate("/login");
-
     }
+
+  } catch (err) {
+    navigate("/login");
+  }
+};
+
+verifyOAuth();
 
   }, []);
 
