@@ -20,7 +20,7 @@ try {
 
 setLoading(true);
 
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_BASE = process.env.REACT_APP_API || "http://localhost:5000/api";
 
 const res = await axios.post(
   `${API_BASE}/auth/forgot-password`,
