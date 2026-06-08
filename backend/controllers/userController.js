@@ -386,6 +386,7 @@ export const followUser = async (req, res) => {
 ////////////////////////////////////////////////////////////
 
 export const unfollowUser = async (req, res) => {
+  
   try {
 
     const targetId =
@@ -393,7 +394,11 @@ export const unfollowUser = async (req, res) => {
 
     const currentUserId =
       req.user._id;
-
+    if (!mongoose.Types.ObjectId.isValid(targetId)) {
+  return res.status(400).json({
+    message: "Invalid user ID"
+  });
+}
     const userToUnfollow =
       await User.findById(targetId);
 

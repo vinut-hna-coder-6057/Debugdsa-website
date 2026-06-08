@@ -15,7 +15,11 @@ const router = express.Router();
 
 router.get("/", getLiveBattles);
 
-router.get("/submissions/:id", getBattleSubmissions);
+router.get(
+  "/submissions/:id",
+  protect,
+  getBattleSubmissions
+);
 
 router.get("/leaderboard/:id", getBattleLeaderboard);
 

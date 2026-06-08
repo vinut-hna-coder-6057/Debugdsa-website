@@ -67,9 +67,9 @@ export const protect = async (req, res, next) => {
     next();
 
   } catch (error) {
-
-    console.error("AUTH ERROR:", error);
-
+    if (process.env.NODE_ENV !== "test") {
+  console.error("AUTH ERROR:", error);
+}
     return res.status(401).json({
       message: "Invalid or expired token."
     });

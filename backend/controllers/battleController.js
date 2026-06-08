@@ -1,6 +1,6 @@
 import Battle from "../models/battle.js";
 import User from "../models/User.js";
-
+import mongoose from "mongoose";
 
 
 //////////////////////////////////////////////////
@@ -66,6 +66,11 @@ export const getLiveBattles = async (req, res) => {
 export const getBattleById = async (req, res) => {
 
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({
+    message: "Invalid battle ID"
+  });
+}
 
     const battle = await Battle.findById(req.params.id)
       .populate("participants", "name");
@@ -97,6 +102,11 @@ export const getBattleById = async (req, res) => {
 export const joinBattle = async (req, res) => {
 
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({
+    message: "Invalid battle ID"
+  });
+}
 
     const battle = await Battle.findById(req.params.id);
 
@@ -153,6 +163,11 @@ export const joinBattle = async (req, res) => {
 export const submitBattleSolution = async (req, res) => {
 
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({
+    message: "Invalid battle ID"
+  });
+}
 
     const { code } = req.body;
 
@@ -242,6 +257,11 @@ export const submitBattleSolution = async (req, res) => {
 export const getBattleSubmissions = async (req, res) => {
 
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({
+    message: "Invalid battle ID"
+  });
+}
 
     const battle = await Battle.findById(req.params.id)
       .populate("submissions.user", "name");
@@ -326,6 +346,7 @@ export const getBattleLeaderboard = async (req, res) => {
 export const getGlobalBattleLeaderboard = async (req, res) => {
 
   try {
+
 
     const users = await User.find()
       .select("name battlePoints")
