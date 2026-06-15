@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 import Bug from "../models/Bug.js";
 import Solution from "../models/Solution.js";
-
+import trie from "../services/trieService.js";
 import { analyzeComplexity } from "../utils/complexityAnalyzer.js";
 
 ////////////////////////////////////////////////////////////
@@ -89,7 +89,7 @@ export const createBug = async (req, res) => {
       aiSpaceComplexity: analysis.spaceComplexity,
       aiExplanation: analysis.explanation,
     });
-
+    trie.insert(bug.title);
     res.status(201).json({
       success: true,
       message: "Bug created successfully 🎉",

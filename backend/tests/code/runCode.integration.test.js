@@ -1,7 +1,7 @@
 import request from "supertest";
 import app from "../../app.js";
 import User from "../../models/User.js";
-
+import mongoose from "mongoose";
 import {
   connectDB,
   closeDB,

@@ -24,8 +24,12 @@ test("unauthenticated user cannot join battle", async () => {
 
   const battle = await Battle.create({
     title: "Test Battle",
-    startTime: new Date(Date.now() - 1000),
-    endTime: new Date(Date.now() + 3600000)
+    //startTime: new Date(Date.now() - 1000),
+    const startTime = new Date();
+
+const endTime = new Date(
+  Date.now() + 60 * 60 * 1000
+);
   });
 
   const res = await request(app)
@@ -45,7 +49,11 @@ test("user can join battle", async () => {
   const battle = await Battle.create({
     title: "Battle",
     startTime: new Date(Date.now() - 1000),
-    endTime: new Date(Date.now() + 3600000)
+    const startTime = new Date();
+
+const endTime = new Date(
+  Date.now() + 60 * 60 * 1000
+);
   });
 
   const loginRes = await request(app)
@@ -103,7 +111,11 @@ test("participant added after join", async () => {
   const battle = await Battle.create({
     title: "Battle",
     startTime: new Date(Date.now() - 1000),
-    endTime: new Date(Date.now() + 3600000)
+    const startTime = new Date();
+
+const endTime = new Date(
+  Date.now() + 60 * 60 * 1000
+);
   });
 
   const loginRes = await request(app)

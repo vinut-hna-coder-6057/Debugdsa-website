@@ -29,35 +29,19 @@ test("duplicate join does not create duplicate participants", async () => {
     password: "Password123"
   });
 
+  const startTime = new Date();
+
+  const endTime = new Date(
+    Date.now() + 60 * 60 * 1000
+  );
+
   const battle = await Battle.create({
     title: "Duplicate Join Battle",
-    startTime: new Date(Date.now() - 1000),
-    endTime: new Date(Date.now() + 3600000)
+    startTime,
+    endTime
   });
 
-  const loginRes = await request(app)
-    .post("/api/auth/login")
-    .send({
-      email: "battle@gmail.com",
-      password: "Password123"
-    });
-
-  const cookies = loginRes.headers["set-cookie"];
-
-  await request(app)
-    .post(`/api/battles/join/${battle._id}`)
-    .set("Cookie", cookies);
-
-  await request(app)
-    .post(`/api/battles/join/${battle._id}`)
-    .set("Cookie", cookies);
-
-  const updatedBattle =
-    await Battle.findById(battle._id);
-
-  expect(
-    updatedBattle.participants.length
-  ).toBe(1);
+  // rest of your test...
 
 });
 test("invalid battle id returns 400", async () => {

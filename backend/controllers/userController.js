@@ -38,43 +38,44 @@ export const getAllUsers = async (req, res) => {
 ////////////////////////////////////////////////////////////
 // LEADERBOARD
 ////////////////////////////////////////////////////////////
-
 export const getLeaderboard = async (req, res) => {
   try {
 
-    const users = await User.find().select(
-      "name points bugsSolved badges certified certificationLevel"
-    );
+    const users = await User.find()
+      .select(
+        "name points bugsSolved badges certified certificationLevel"
+      );
 
-    const leaderboard = await Promise.all(
-
-      users.map(async (user) => {
-
-        const upvotes =
-          await Solution.aggregate([
-            {
-              $match: {
-                solvedBy: user._id
-              }
-            },
-            {
-              $group: {
-                _id: null,
-                total: {
-                  $sum: "$upvoteCount"
-                }
-              }
+    const upvoteData =
+      await Solution.aggregate([
+        {
+          $group: {
+            _id: "$solvedBy",
+            totalUpvotes: {
+              $sum: "$upvoteCount"
             }
-          ]);
+          }
+        }
+      ]);
 
-        return {
-          ...user.toObject(),
-          totalUpvotes:
-            upvotes[0]?.total || 0,
-        };
+    const upvoteMap = new Map();
 
+    upvoteData.forEach((item) => {
+      upvoteMap.set(
+        item._id.toString(),
+        item.totalUpvotes
+      );
+    });
+
+    const leaderboard = users.map(
+      (user) => ({
+        ...user.toObject(),
+
+        totalUpvotes:
+          upvoteMap.get(
+            user._id.toString()
+          ) || 0,
       })
-
     );
 
     leaderboard.sort((a, b) => {
@@ -87,7 +88,8 @@ export const getLeaderboard = async (req, res) => {
         b.bugsSolved !== a.bugsSolved
       ) {
         return (
-          b.bugsSolved - a.bugsSolved
+          b.bugsSolved -
+          a.bugsSolved
         );
       }
 

@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import Bug from "../models/Bug.js";
 import Solution from "../models/Solution.js";
-
+import mongoose from "mongoose";
 //////////////////////////////////////////////////
 // USERS
 //////////////////////////////////////////////////
@@ -22,11 +22,24 @@ export const getUsers = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    if (
+  !mongoose.Types.ObjectId.isValid(req.params.id)
+) {
+  return res.status(400).json({
+    message: "Invalid ID",
+  });
+}
+   const user = await User.findByIdAndDelete(req.params.id);
 
-    res.json({
-      message: "User deleted successfully",
-    });
+if (!user) {
+  return res.status(404).json({
+    message: "User not found",
+  });
+}
+
+res.json({
+  message: "User deleted successfully",
+});
   } catch (err) {
     console.error("DELETE USER ERROR:", err);
 
@@ -58,11 +71,26 @@ export const getBugs = async (req, res) => {
 
 export const deleteBug = async (req, res) => {
   try {
-    await Bug.findByIdAndDelete(req.params.id);
+    if (
+  !mongoose.Types.ObjectId.isValid(req.params.id)
+) {
+  return res.status(400).json({
+    message: "Invalid ID",
+  });
+}
+  
+const bug =
+  await Bug.findByIdAndDelete(req.params.id);
 
-    res.json({
-      message: "Bug deleted successfully",
-    });
+if (!bug) {
+  return res.status(404).json({
+    message: "Bug not found"
+  });
+}
+
+res.json({
+  message: "Bug deleted successfully"
+});
   } catch (err) {
     console.error("DELETE BUG ERROR:", err);
 
@@ -94,7 +122,25 @@ export const getSubmissions = async (req, res) => {
 
 export const deleteSubmission = async (req, res) => {
   try {
-    await Solution.findByIdAndDelete(req.params.id);
+    if (
+  !mongoose.Types.ObjectId.isValid(req.params.id)
+) {
+  return res.status(400).json({
+    message: "Invalid ID",
+  });
+}
+    const submission =
+  await Solution.findByIdAndDelete(req.params.id);
+
+if (!submission) {
+  return res.status(404).json({
+    message: "Submission not found",
+  });
+}
+
+res.json({
+  message: "Submission deleted successfully",
+});
 
     res.json({
       message: "Submission deleted successfully",

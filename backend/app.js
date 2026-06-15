@@ -18,7 +18,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import runCodeRoutes from "./routes/runCode.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
 import recommendationRoutes from "./routes/recommendationRoutes.js";
-
+import searchRoutes from "./routes/searchRoutes.js";
 const app = express();
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -125,7 +125,10 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/code", runCodeRoutes);
 app.use("/api/certificate", certificateRoutes);
 app.use("/api/recommendations", recommendationRoutes);
-
+app.use(
+  "/api/search",
+  searchRoutes
+);
 //////////////////////////////////////////////////
 // HEALTH CHECK
 //////////////////////////////////////////////////
