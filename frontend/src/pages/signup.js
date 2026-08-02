@@ -20,7 +20,7 @@ function Signup() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const API = "http://localhost:5000/api";
+  const API = `${process.env.REACT_APP_API}/api`;
 
   //////////////////////////////////////////////////////
   // GOOGLE SIGNUP

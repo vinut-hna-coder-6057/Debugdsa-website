@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: `${process.env.REACT_APP_API}/api`,
   withCredentials: true, // 🔥 needed for cookies
   headers: {
     "Content-Type": "application/json"

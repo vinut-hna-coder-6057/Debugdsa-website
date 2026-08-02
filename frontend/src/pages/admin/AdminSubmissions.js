@@ -18,7 +18,7 @@ const fetchSubs = async ()=>{
 try{
 
   const res = await axios.get(
-    "http://localhost:5000/api/admin/submissions",
+    `${process.env.REACT_APP_API}/api/admin/submissions`,
     {
       withCredentials:true
     }
@@ -43,7 +43,7 @@ const deleteSub = async(id)=>{
 try{
 
   await axios.delete(
-    `http://localhost:5000/api/admin/submissions/${id}`,
+    `${process.env.REACT_APP_API}/api/admin/submissions/${id}`,
     {
       withCredentials:true
     }

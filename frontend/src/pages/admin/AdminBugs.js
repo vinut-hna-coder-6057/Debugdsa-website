@@ -18,7 +18,7 @@ const fetchBugs = async () =>{
 try{
 
   const res = await axios.get(
-    "http://localhost:5000/api/admin/bugs",
+    `${process.env.REACT_APP_API}/api/admin/bugs`,
     {
       withCredentials:true
     }
@@ -43,7 +43,7 @@ const deleteBug = async(id)=>{
 try{
 
   await axios.delete(
-    `http://localhost:5000/api/admin/bugs/${id}`,
+    `${process.env.REACT_APP_API}/api/admin/bugs/${id}`,
     {
       withCredentials:true
     }

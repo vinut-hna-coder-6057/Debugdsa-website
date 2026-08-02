@@ -64,13 +64,9 @@ function ResetPassword() {
       setLoading(true);
 
 const res = await axios.put(
-
-`http://192.168.0.9:5000/api/auth/reset-password/${token}`,
-
-        { password }
-
-      );
-
+  `${process.env.REACT_APP_API}/api/auth/reset-password/${token}`,
+  { password }
+);
       setMessage(res.data.message);
 
      setTimeout(() => {

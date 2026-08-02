@@ -42,7 +42,7 @@ try {
 
 const res = await axios.post(
 
-"http://localhost:5000/api/auth/firebase-login",
+`${process.env.REACT_APP_API}/api/auth/firebase-login`,
 
 {
 credential:
@@ -81,7 +81,7 @@ try {
 
 const res = await axios.post(
 
-"http://localhost:5000/api/auth/firebase-login",
+`${process.env.REACT_APP_API}/api/auth/firebase-login`,
 
 {
 credential:

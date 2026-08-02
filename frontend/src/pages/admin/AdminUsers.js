@@ -18,7 +18,7 @@ const fetchUsers = async ()=>{
 try{
 
   const res = await axios.get(
-    "http://localhost:5000/api/admin/users",
+    `${process.env.REACT_APP_API}/api/admin/users`,
     {
       withCredentials:true
     }
@@ -45,7 +45,7 @@ const deleteUser = async(id)=>{
 try{
 
   await axios.delete(
-    `http://localhost:5000/api/admin/user/${id}`,
+    `${process.env.REACT_APP_API}/api/admin/user/${id}`,
     {
       withCredentials:true
     }
