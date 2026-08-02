@@ -4,18 +4,18 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 let mongoServer;
 
 export const connectDB = async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create({
+    binary: {
+      version: "8.0.26",
+    },
+  });
 
-  await mongoose.connect(
-    mongoServer.getUri()
-  );
+  await mongoose.connect(mongoServer.getUri());
 };
 
 export const closeDB = async () => {
   await mongoose.connection.dropDatabase();
-
   await mongoose.connection.close();
-
   await mongoServer.stop();
 };
 
