@@ -108,16 +108,17 @@ test("participant added after join", async () => {
     password: "Password123"
   });
 
-  const battle = await Battle.create({
-    title: "Battle",
-    startTime: new Date(Date.now() - 1000),
-    const startTime = new Date();
+  const startTime = new Date();
 
 const endTime = new Date(
   Date.now() + 60 * 60 * 1000
 );
-  });
 
+const battle = await Battle.create({
+  title: "Test Battle",
+  startTime,
+  endTime,
+});
   const loginRes = await request(app)
     .post("/api/auth/login")
     .send({
