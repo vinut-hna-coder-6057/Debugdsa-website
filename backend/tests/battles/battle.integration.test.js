@@ -21,16 +21,11 @@ afterAll(async () => {
   await closeDB();
 });
 test("unauthenticated user cannot join battle", async () => {
-
-  const battle = await Battle.create({
-    title: "Test Battle",
-    //startTime: new Date(Date.now() - 1000),
-    const startTime = new Date();
-
-const endTime = new Date(
-  Date.now() + 60 * 60 * 1000
-);
-  });
+const battle = await Battle.create({
+  title: "Test Battle",
+  startTime: new Date(),
+  endTime: new Date(Date.now() + 60 * 60 * 1000),
+});
 
   const res = await request(app)
     .post(`/api/battles/join/${battle._id}`);
@@ -45,16 +40,12 @@ test("user can join battle", async () => {
     email: "battle@gmail.com",
     password: "Password123"
   });
-
-  const battle = await Battle.create({
-    title: "Battle",
-    startTime: new Date(Date.now() - 1000),
-    const startTime = new Date();
-
-const endTime = new Date(
-  Date.now() + 60 * 60 * 1000
-);
-  });
+const battle = await Battle.create({
+  title: "Battle",
+  startTime: new Date(Date.now() - 1000),
+  endTime: new Date(Date.now() + 60 * 60 * 1000),
+});
+  
 
   const loginRes = await request(app)
     .post("/api/auth/login")
