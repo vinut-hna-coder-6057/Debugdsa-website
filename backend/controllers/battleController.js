@@ -293,7 +293,11 @@ export const getBattleSubmissions = async (req, res) => {
 export const getBattleLeaderboard = async (req, res) => {
 
   try {
-
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({
+    message: "Invalid battle ID"
+  });
+}
     const battle = await Battle.findById(req.params.id)
       .populate("submissions.user", "name");
 
@@ -319,13 +323,17 @@ export const getBattleLeaderboard = async (req, res) => {
     //////////////////////////////////////////////////
 
     if (io) {
-      io.to(battle._id.toString()).emit(
-        "leaderboardUpdated",
-        leaderboard
-      );
+     io.to(battle._id.toString()).emit(
+  "leaderboardUpdated",
+  {
+    users: leaderboard
+  }
+);
     }
 
-    res.json(leaderboard);
+    res.json({
+  users: leaderboard
+});
 
   } catch (err) {
 
@@ -352,8 +360,10 @@ export const getGlobalBattleLeaderboard = async (req, res) => {
       .select("name battlePoints")
       .sort({ battlePoints: -1 })
       .limit(50);
-
-    res.json(users);
+      res.json({
+  users
+});
+    
 
   } catch (err) {
 

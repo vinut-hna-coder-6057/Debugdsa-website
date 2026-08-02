@@ -21,8 +21,9 @@ export const getAllUsers = async (req, res) => {
 
     const users = await User.find()
       .select("-password -refreshToken");
-
-    res.json(users);
+      res.json({
+  users
+});
 
   } catch (err) {
 

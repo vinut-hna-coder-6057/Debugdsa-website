@@ -10,22 +10,33 @@ export const createBattle = async (req,res)=>{
 try{
 
 const {
-title,
-language,
-topic,
-pattern,
-description,
-buggyCode,
-expectedOutput,
-duration,
-startTime
+  title,
+  language,
+  topic,
+  pattern,
+  description,
+  buggyCode,
+  expectedOutput,
+  duration,
+  startTime,
+  endTime
 } = req.body;
 
 const battleStartTime = new Date(startTime);
 
-const endTime = new Date(
-battleStartTime.getTime() + duration * 60 * 1000
-);
+let battleEndTime;
+
+if (endTime) {
+  battleEndTime = new Date(endTime);
+} else if (duration != null) {
+  battleEndTime = new Date(
+    battleStartTime.getTime() + Number(duration) * 60 * 1000
+  );
+} else {
+  return res.status(400).json({
+    message: "Either endTime or duration is required"
+  });
+}
 
 const battle = await Battle.create({
 
@@ -37,7 +48,7 @@ description,
 buggyCode,
 expectedOutput,
 startTime: battleStartTime,
-endTime
+endTime: battleEndTime
 
 });
 

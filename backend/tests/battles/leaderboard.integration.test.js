@@ -180,13 +180,12 @@ test(
 
     expect(res.status).toBe(200);
 
-    expect(res.body.users.length).toBe(2);
+    expect(res.body.users.length).toBe(2);  
+    expect(res.body.users[0].rank)
+  .toBe(1);
 
-    expect(res.body[0].rank)
-      .toBe(1);
-
-    expect(res.body[0].user)
-      .toBe("User1");
+expect(res.body.users[0].user)
+  .toBe("User1");
 
   }
 );

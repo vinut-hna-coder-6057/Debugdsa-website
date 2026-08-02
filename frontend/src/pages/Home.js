@@ -13,7 +13,7 @@ function Home() {
 
   const handleCTA = () => {
     if (user) {
-      navigate("/dashboard");
+      navigate("/profile");
     } else {
       navigate("/login");
     }
@@ -53,7 +53,7 @@ function Home() {
               style={ctaButton}
               onClick={handleCTA}
             >
-              {user ? "Go to Dashboard →" : "Start Debugging →"}
+              {user ? "Go to Profile →" : "Start Debugging →"}
             </motion.button>
 
           </div>
@@ -141,7 +141,7 @@ function Home() {
           style={ctaFinal}
           onClick={handleCTA}
         >
-          {user ? "Open Dashboard 🚀" : "Join Now 🚀"}
+          {user ? "Open Profile 🚀" : "Join Now 🚀"}
         </motion.button>
 
       </section>

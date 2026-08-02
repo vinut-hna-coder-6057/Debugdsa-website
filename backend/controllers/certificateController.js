@@ -25,7 +25,7 @@ export const downloadCertificate = async (req, res) => {
     // MINIMUM ELIGIBILITY
     //////////////////////////////////////////////////
 
-    if (user.points < 100) {
+    if (user.points < 4) {
       return res.status(403).json({
         message:
           "You need at least 100 points to download certificate"
@@ -38,9 +38,9 @@ export const downloadCertificate = async (req, res) => {
 
     let level = "Bronze";
 
-    if (user.points >= 500) {
+    if (user.points >= 10) {
       level = "Gold";
-    } else if (user.points >= 250) {
+    } else if (user.points >= 4) {
       level = "Silver";
     }
 

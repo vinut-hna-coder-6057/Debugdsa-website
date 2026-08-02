@@ -26,7 +26,7 @@ export const deleteUser = async (req, res) => {
   !mongoose.Types.ObjectId.isValid(req.params.id)
 ) {
   return res.status(400).json({
-    message: "Invalid ID",
+    message: "Invalid user ID",
   });
 }
    const user = await User.findByIdAndDelete(req.params.id);
@@ -52,14 +52,16 @@ res.json({
 //////////////////////////////////////////////////
 // BUGS
 //////////////////////////////////////////////////
-
 export const getBugs = async (req, res) => {
   try {
     const bugs = await Bug.find()
       .populate("postedBy", "name email")
       .sort({ createdAt: -1 });
 
-    res.json(bugs);
+    res.json({
+      users: bugs
+    });
+
   } catch (err) {
     console.error("GET BUGS ERROR:", err);
 
@@ -68,38 +70,37 @@ export const getBugs = async (req, res) => {
     });
   }
 };
-
 export const deleteBug = async (req, res) => {
   try {
-    if (
-  !mongoose.Types.ObjectId.isValid(req.params.id)
-) {
-  return res.status(400).json({
-    message: "Invalid ID",
-  });
-}
-  
-const bug =
-  await Bug.findByIdAndDelete(req.params.id);
 
-if (!bug) {
-  return res.status(404).json({
-    message: "Bug not found"
-  });
-}
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid bug ID",
+      });
+    }
 
-res.json({
-  message: "Bug deleted successfully"
-});
+    const bug = await Bug.findByIdAndDelete(req.params.id);
+
+    if (!bug) {
+      return res.status(404).json({
+        message: "Bug not found",
+      });
+    }
+
+    res.json({
+      message: "Bug deleted successfully",
+    });
+
   } catch (err) {
+
     console.error("DELETE BUG ERROR:", err);
 
     res.status(500).json({
       message: "Server error deleting bug",
     });
+
   }
 };
-
 //////////////////////////////////////////////////
 // SUBMISSIONS
 //////////////////////////////////////////////////
@@ -126,7 +127,7 @@ export const deleteSubmission = async (req, res) => {
   !mongoose.Types.ObjectId.isValid(req.params.id)
 ) {
   return res.status(400).json({
-    message: "Invalid ID",
+    message: "Invalid submission ID",
   });
 }
     const submission =

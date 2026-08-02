@@ -17,7 +17,7 @@ function OAuthSuccess() {
     );
 
     if (res.data.user) {
-      navigate("/dashboard");
+      navigate("/profile");
     } else {
       navigate("/login");
     }

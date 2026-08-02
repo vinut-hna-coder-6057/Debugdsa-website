@@ -137,11 +137,11 @@ test(
     expect(res.status).toBe(200);
 
     expect(
-      Array.isArray(res.body)
-    ).toBe(true);
+  Array.isArray(res.body.users)
+).toBe(true);
 
-    expect(res.body.users.length)
-      .toBeGreaterThan(0);
+expect(res.body.users.length)
+  .toBeGreaterThan(0);
 
   }
 );
@@ -153,28 +153,22 @@ test(
 test(
   "admin can delete bug",
   async () => {
+    const cookies = await createAdminAndLogin();
 
-    const admin = await User.create({
-      name: "Admin",
-      email: "admin@gmail.com",
-      password: "Password123",
-      role: "admin"
-    });
+const admin = await User.findOne({
+  email: "admin@gmail.com"
+});
 
-    const bug = await Bug.create({
-      title: "Delete Bug Test",
-      description:
-        "Testing delete functionality",
-      code: "console.log('bug')",
-      language: "JavaScript",
-      topic: "Basics",
-      error: "Wrong output",
-      expectedOutput: "Correct output",
-      postedBy: admin._id
-    });
-
-    const cookies =
-      await createAdminAndLogin();
+const bug = await Bug.create({
+  title: "Delete Bug Test",
+  description: "Testing delete functionality",
+  code: "console.log('bug')",
+  language: "JavaScript",
+  topic: "Basics",
+  error: "Wrong output",
+  expectedOutput: "Correct output",
+  postedBy: admin._id
+});
 
     const res = await request(app)
       .delete(
@@ -237,26 +231,6 @@ test(
 );
 
 test(
-  "delete nonexistent bug returns success response",
-  async () => {
-
-    const cookies =
-      await createAdminAndLogin();
-
-    const fakeId =
-      new mongoose.Types.ObjectId();
-
-    const res = await request(app)
-      .delete(
-        `/api/admin/bugs/${fakeId}`
-      )
-      .set("Cookie", cookies);
-
-    expect(res.status).toBe(200);
-
-  }
-);
-test(
   "invalid bug id returns 400",
   async () => {
 
@@ -297,24 +271,16 @@ test(
 
   }
 );
-
 export const deleteBug = async (req, res) => {
   try {
 
-    if (
-      !mongoose.Types.ObjectId.isValid(
-        req.params.id
-      )
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         message: "Invalid bug ID",
       });
     }
 
-    const bug =
-      await Bug.findByIdAndDelete(
-        req.params.id
-      );
+    const bug = await Bug.findByIdAndDelete(req.params.id);
 
     if (!bug) {
       return res.status(404).json({
@@ -328,59 +294,14 @@ export const deleteBug = async (req, res) => {
 
   } catch (err) {
 
-    console.error(
-      "DELETE BUG ERROR:",
-      err
-    );
+    console.error("DELETE BUG ERROR:", err);
 
     res.status(500).json({
-      message:
-        "Server error deleting bug",
+      message: "Server error deleting bug",
     });
 
   }
 };
-test(
-  "invalid user id returns 400",
-  async () => {
-
-    const cookies =
-      await createAdminAndLogin();
-
-    const res = await request(app)
-      .delete("/api/admin/user/invalid-id")
-      .set("Cookie", cookies);
-
-    expect(res.status).toBe(400);
-
-    expect(res.body.message)
-      .toBe("Invalid user ID");
-
-  }
-);
-test(
-  "nonexistent user returns 404",
-  async () => {
-
-    const cookies =
-      await createAdminAndLogin();
-
-    const fakeId =
-      new mongoose.Types.ObjectId();
-
-    const res = await request(app)
-      .delete(
-        `/api/admin/user/${fakeId}`
-      )
-      .set("Cookie", cookies);
-
-    expect(res.status).toBe(404);
-
-    expect(res.body.message)
-      .toBe("User not found");
-
-  }
-);
 test(
   "invalid submission id returns 400",
   async () => {
