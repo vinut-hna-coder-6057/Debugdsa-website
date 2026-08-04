@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
-
+import redisClient from "../config/redis.js";
 import User from "../models/User.js";
 import Bug from "../models/Bug.js";
 import Solution from "../models/Solution.js";
-
+import {
+  clearLeaderboardCache,
+  clearUserCache
+} from "../utils/cache.js";
 ////////////////////////////////////////////////////////////
 // TEST ROUTE
 ////////////////////////////////////////////////////////////
@@ -41,7 +44,16 @@ export const getAllUsers = async (req, res) => {
 ////////////////////////////////////////////////////////////
 export const getLeaderboard = async (req, res) => {
   try {
+    const CACHE_KEY = "leaderboard";
+    const cachedLeaderboard = await redisClient.get(CACHE_KEY);
 
+if (cachedLeaderboard) {
+
+  console.log("✅ Leaderboard served from Redis");
+
+  return res.json(JSON.parse(cachedLeaderboard));
+
+}
     const users = await User.find()
       .select(
         "name points bugsSolved badges certified certificationLevel"
@@ -101,9 +113,19 @@ export const getLeaderboard = async (req, res) => {
 
     });
 
-    res.json(
-      leaderboard.slice(0, 50)
-    );
+   const result = {
+    users: leaderboard.slice(0, 50)
+};
+
+await redisClient.setEx(
+    CACHE_KEY,
+    300,
+    JSON.stringify(result)
+);
+
+console.log("✅ Leaderboard cached");
+
+return res.json(result);
 
   } catch (err) {
 
@@ -122,6 +144,7 @@ export const getLeaderboard = async (req, res) => {
 
 export const getMyProfile = async (req, res) => {
   try {
+    const CACHE_KEY = `user:${req.user._id}`;
 
     const user = await User.findById(
       req.user._id
@@ -189,6 +212,14 @@ export const getMyProfile = async (req, res) => {
 
 export const getUserProfile = async (req, res) => {
   try {
+    const CACHE_KEY = `user:${req.params.id}`;
+
+const cached = await redisClient.get(CACHE_KEY);
+
+if (cached) {
+  console.log("✅ User profile served from Redis");
+  return res.json(JSON.parse(cached));
+}
 
     if (
       !mongoose.Types.ObjectId.isValid(
@@ -229,11 +260,21 @@ export const getUserProfile = async (req, res) => {
         }
       ]);
 
-    res.json({
-      ...user.toObject(),
-      totalUpvotes:
-        upvotes[0]?.total || 0
-    });
+    const result = {
+  ...user.toObject(),
+  totalUpvotes:
+    upvotes[0]?.total || 0
+};
+
+await redisClient.setEx(
+  CACHE_KEY,
+  300,
+  JSON.stringify(result)
+);
+
+console.log("✅ User profile cached");
+
+return res.json(result);
 
   } catch (err) {
 
@@ -275,6 +316,8 @@ export const editProfile = async (req, res) => {
       ).select(
         "-password -refreshToken"
       );
+      await clearLeaderboardCache();
+await clearUserCache(req.user._id);
 
     res.json(user);
 
@@ -361,6 +404,10 @@ export const followUser = async (req, res) => {
     await currentUser.save();
 
     await userToFollow.save();
+    await clearLeaderboardCache();
+
+await clearUserCache(currentUser._id);
+await clearUserCache(userToFollow._id);
 
     res.json({
       message:
@@ -436,6 +483,10 @@ export const unfollowUser = async (req, res) => {
     await currentUser.save();
 
     await userToUnfollow.save();
+    await clearLeaderboardCache();
+
+await clearUserCache(currentUser._id);
+await clearUserCache(userToUnfollow._id);
 
     res.json({
       message:

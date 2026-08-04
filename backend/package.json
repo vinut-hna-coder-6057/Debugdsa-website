@@ -30,6 +30,7 @@
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.17.2",
     "react-countdown": "^2.3.6",
+    "redis": "^6.2.0",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

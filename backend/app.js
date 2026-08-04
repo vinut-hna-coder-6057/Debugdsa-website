@@ -1,5 +1,6 @@
 // backend/app.js
 import "./config/env.js";
+import "./config/redis.js";
 import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
