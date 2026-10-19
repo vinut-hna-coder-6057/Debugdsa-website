@@ -89,6 +89,38 @@ Unlike traditional coding platforms that focus only on writing solutions, DebugD
 }
 ```
 
+### Local AI Debug Coach
+
+The bug-solving page also provides an authenticated, RAG-based debugging coach.
+It uses Ollama locally with `qwen2.5:3b-instruct` and the
+`Xenova/all-MiniLM-L6-v2` embedding model; it does not use OpenAI. The Coach
+retrieves up to five related debugging concepts and returns a diagnosis, a
+conceptual hint, the relevant concept, and one concrete debugging step without
+providing corrected code.
+
+Install and start Ollama, then download the model:
+
+```bash
+ollama pull qwen2.5:3b-instruct
+ollama run qwen2.5:3b-instruct
+```
+
+Keep Ollama running, configure `OLLAMA_URL` and `OLLAMA_MODEL` in
+`backend/.env` if the defaults do not apply, then run the backend Coach checks:
+
+```bash
+cd backend
+npm run test:ai:embedding
+npm run test:ai:ollama
+npm run test:ai
+```
+
+The embedding test verifies a 384-dimensional MiniLM vector is generated. The
+Ollama test checks a local model response. The Coach test checks top-5 retrieval
+for representative bugs and exercises all four response fields through the
+controller. Embeddings are cached in
+`backend/ai/embeddings/KnowledgeEmbeddings.json`.
+
 
 ---
 
@@ -312,6 +344,8 @@ JWT_SECRET=your_jwt_secret
 JWT_REFRESH_SECRET=your_refresh_secret
 
 OPENAI_API_KEY=your_openai_key
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:3b-instruct
 
 FRONTEND_URL=http://localhost:3000
 ```

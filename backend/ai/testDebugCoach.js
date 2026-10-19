@@ -1,0 +1,462 @@
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { getDebuggingHint } from "../controllers/aiController.js";
+import {
+  initializeVectorStore,
+  isValidCache,
+  search,
+} from "./retrieval/vectorStore.js";
+import {
+  findInclusiveMatrixColumnBound,
+  findUncheckedBinarySearchCandidate,
+  findOverwrittenSuccessor,
+  getDebugHint,
+  getModelHint,
+  normalizeHint,
+} from "./rag/debugCoach.js";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const cachePath = path.join(here, "embeddings/KnowledgeEmbeddings.json");
+const retrievalCases = [
+  ["Factorial recursion missing zero base case", "recursion-factorial-zero"],
+  ["Sliding window failing on all-negative arrays", "sliding-window-negative-values"],
+  ["Binary search failing to inspect the final candidate", "binary-search-final-candidate"],
+  ["DFS/BFS missing visited tracking in a cyclic graph", "graph-dfs-cycle"],
+  ["Two-pointer logic moving the wrong pointer", "two-pointer-movement"],
+  ["Linked-list reversal missing a pointer update", "linked-list-reversal-pointers"],
+  ["Matrix traversal accessing an out-of-range index", "matrix-row-column-bounds"],
+];
+
+await initializeVectorStore();
+const firstCacheTime = (await fs.stat(cachePath)).mtimeMs;
+await initializeVectorStore();
+assert.equal((await fs.stat(cachePath)).mtimeMs, firstCacheTime, "second initialization should reuse the embedding cache");
+console.log("PASS embedding cache reused");
+
+for (const [query, expectedId] of retrievalCases) {
+  const results = await search(query, 5);
+  assert.ok(results.length > 0, `${query}: expected relevant retrieval results`);
+  assert.equal(results[0].id, expectedId, `${query}: expected the matching concept first`);
+  console.log(`PASS top-5 retrieval: ${query} => ${results[0].id} (${results[0].score.toFixed(3)})`);
+}
+
+const graphResults = await search(
+  "DFS BFS missing visited tracking in a cyclic graph",
+  5
+);
+assert.ok(
+  graphResults.slice(0, 2).some((result) => result.id === "graph-dfs-cycle") &&
+    graphResults.slice(0, 2).some((result) => result.id === "graph-bfs-visited"),
+  "Cyclic graph query should rank both DFS and BFS visited guidance near the top"
+);
+
+const unrelatedQuery = await search("What is the capital of France?", 5);
+assert.deepEqual(unrelatedQuery, [], "Unrelated questions should not return DSA documents");
+console.log("PASS unrelated queries are rejected by retrieval");
+
+const cachedDocuments = JSON.parse(await fs.readFile(cachePath, "utf8"));
+assert.equal(isValidCache(cachedDocuments), true, "Current embedding cache should match the knowledge base");
+const staleDocuments = cachedDocuments.map((document) => ({ ...document }));
+staleDocuments[0].content += " changed source content";
+assert.equal(isValidCache(staleDocuments), false, "Stale knowledge content must invalidate the cache");
+assert.equal(
+  isValidCache([
+    { id: "bad", embedding: [1, 2, 3] },
+  ]),
+  false,
+  "Malformed cache payloads should be rejected"
+);
+console.log("PASS stale and malformed cache payloads are rejected");
+
+const validHint = {
+  diagnosis: "The factorial branch does not stop when n is zero, so it recurses with negative values.",
+  hint: "What happens to n after the zero case enters the recursive branch?",
+  concept: "Factorial recursion base case",
+  debuggingStep: "Trace factorial with input zero and note the argument at each recursive call.",
+};
+assert.deepEqual(normalizeHint(validHint), validHint, "Useful identifier-bearing hints should remain valid");
+assert.throws(
+  () =>
+    normalizeHint({
+      ...validHint,
+      hint: "Add a visited set to stop revisiting nodes?",
+    }),
+  /direct code-edit instruction/
+);
+assert.throws(
+  () =>
+    normalizeHint({
+      ...validHint,
+      debuggingStep: "Modify the function to include a visited set.",
+    }),
+  /direct code-edit instruction/
+);
+assert.throws(
+  () =>
+    normalizeHint({
+      ...validHint,
+      hint: "Examine the recursive call and ensure that each call returns the result?",
+    }),
+  /direct code-edit instruction/
+);
+assert.throws(
+  () =>
+    normalizeHint({
+      ...validHint,
+      hint: "Here is the code: `visited.add(node)`?",
+    }),
+  /code-like content/
+);
+assert.throws(
+  () =>
+    normalizeHint({
+      ...validHint,
+      diagnosis: "function factorial(n) { return n * factorial(n - 1); }",
+    }),
+  /code-like content/
+);
+assert.throws(
+  () =>
+    normalizeHint({
+      ...validHint,
+      debuggingStep: "for (let row = 0; row < grid.length; row++) { }",
+    }),
+  /code-like content/
+);
+assert.doesNotThrow(() =>
+  normalizeHint({
+    ...validHint,
+    diagnosis: "The guard only accepts n === 1, so zero enters the recursive branch.",
+  })
+);
+console.log("PASS response validation preserves identifiers and rejects fixes/code");
+
+const mockHint = {
+  diagnosis: "The code's loop condition permits the final column index, which reads beyond the row.",
+  hint: "What column does the condition allow on the final iteration, and is it valid?",
+  concept: "Matrix column bounds",
+  debuggingStep: "Trace a one-row matrix and inspect the final column index.",
+};
+const mockDependencies = {
+  searchFn: async () => [],
+  generateResponseFn: async () => JSON.stringify(mockHint),
+};
+
+const binarySearchBug = `
+function search(values, target) {
+  let low = 0;
+  let high = values.length - 1;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (values[mid] < target) low = mid + 1;
+    else high = mid;
+  }
+  return -1;
+}
+`;
+const binarySearchCorrect = `
+function search(values, target) {
+  let low = 0;
+  let high = values.length - 1;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (values[mid] === target) return mid;
+    if (values[mid] < target) low = mid + 1;
+    else high = mid - 1;
+  }
+  return -1;
+}
+`;
+assert.deepEqual(
+  findUncheckedBinarySearchCandidate(binarySearchBug, "JavaScript"),
+  { lower: "low", upper: "high", midpoint: "mid" }
+);
+assert.equal(
+  findUncheckedBinarySearchCandidate(binarySearchCorrect, "JavaScript"),
+  null,
+  "A correct binary search with an explicit candidate check must not be flagged"
+);
+assert.equal(
+  findUncheckedBinarySearchCandidate(
+    `// ${binarySearchBug.replace(/\n/g, " ")}`,
+    "JavaScript"
+  ),
+  null,
+  "Binary-search examples in comments must not trigger a diagnosis"
+);
+const binaryHint = await getDebugHint({
+  code: binarySearchBug,
+  language: "JavaScript",
+  topic: "Linked Lists",
+  description: "This code has no binary search issue.",
+});
+assert.match(binaryHint.diagnosis, /one remaining candidate.*returns not-found without testing/i);
+assert.match(binaryHint.hint, /where does the function test that candidate/i);
+assert.doesNotMatch(binaryHint.diagnosis, /infinite loop/i);
+assert.equal(Object.keys(binaryHint).length, 4);
+const validBinaryResponse = await getDebugHint(
+  {
+    code: binarySearchCorrect,
+    language: "JavaScript",
+    topic: "Binary Search",
+    description: "This correct implementation finds the target.",
+  },
+  mockDependencies
+);
+assert.deepEqual(validBinaryResponse, mockHint);
+console.log("PASS binary search final-candidate diagnosis and correct-code control");
+
+const matrixBoundaryBug = `
+function sum(grid) {
+  let total = 0;
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c <= grid[r].length; c++) {
+      total += grid[r][c];
+    }
+  }
+  return total;
+}
+`;
+const matrixBoundaryCorrect = matrixBoundaryBug.replace(
+  "c <= grid[r].length",
+  "c < grid[r].length"
+);
+assert.deepEqual(
+  findInclusiveMatrixColumnBound(matrixBoundaryBug, "JavaScript"),
+  { column: "c", matrix: "grid", row: "r" }
+);
+assert.equal(
+  findInclusiveMatrixColumnBound(matrixBoundaryCorrect, "JavaScript"),
+  null,
+  "A strict column bound must not be flagged"
+);
+assert.equal(
+  findInclusiveMatrixColumnBound(
+    `// ${matrixBoundaryBug.replace(/\n/g, " ")}`,
+    "JavaScript"
+  ),
+  null,
+  "Matrix boundary examples in comments must not trigger a diagnosis"
+);
+const matrixHint = await getDebugHint({
+  code: matrixBoundaryBug,
+  language: "JavaScript",
+  topic: "Binary Search",
+  description: "This traversal never reads outside the grid.",
+});
+assert.match(matrixHint.diagnosis, /allows c to equal the selected row's length.*reads that column/i);
+assert.match(matrixHint.hint, /condition.*last inner-loop iteration|last inner-loop iteration.*condition/i);
+assert.match(matrixHint.debuggingStep, /equals that row's length/i);
+assert.equal(Object.keys(matrixHint).length, 4);
+const validMatrixResponse = await getDebugHint(
+  {
+    code: matrixBoundaryCorrect,
+    language: "JavaScript",
+    topic: "Matrices",
+    description: "This loop has a correct column boundary.",
+  },
+  mockDependencies
+);
+assert.deepEqual(validMatrixResponse, mockHint);
+console.log("PASS matrix inclusive-bound diagnosis and strict-bound control");
+
+const brokenReverse = "function reverse(head) { let prev = null, curr = head; while (curr) { curr.next = prev; prev = curr; curr = curr.next; } return prev; }";
+assert.equal(findOverwrittenSuccessor(brokenReverse, "JavaScript"), "curr");
+assert.equal(
+  findOverwrittenSuccessor(
+    "function visit(head) { while (head) { console.log(head.value); head = head.next; } }",
+    "JavaScript"
+  ),
+  null,
+  "Unrelated linked-list traversal must not trigger the reversal diagnosis"
+);
+assert.equal(
+  findOverwrittenSuccessor(
+    "function reverse(head) { let prev = null, curr = head; while (curr) { const next = curr.next; curr.next = prev; prev = curr; curr = next; } return prev; }",
+    "JavaScript"
+  ),
+  null,
+  "A saved successor should avoid the overwrite diagnosis"
+);
+assert.equal(
+  findOverwrittenSuccessor(
+    `// ${brokenReverse}\nfunction visit(head) { while (head) { head = head.next; } }`,
+    "JavaScript"
+  ),
+  null,
+  "Pointer patterns in comments must not trigger the reversal diagnosis"
+);
+const overwriteHint = await getDebugHint({
+  code: brokenReverse,
+  language: "JavaScript",
+  topic: "Linked Lists",
+  description: "Reversing a list truncates its remaining nodes.",
+});
+assert.match(overwriteHint.diagnosis, /rewritten link instead of the original successor/);
+assert.equal(Object.keys(overwriteHint).length, 4);
+const unrelatedListResponse = await getDebugHint(
+  {
+    code: "function visit(head) { while (head) { console.log(head.value); head = head.next; } }",
+    language: "JavaScript",
+    topic: "Linked Lists",
+    description: "This unrelated traversal is correct.",
+  },
+  mockDependencies
+);
+assert.deepEqual(unrelatedListResponse, mockHint);
+const savedSuccessorHint = await getDebugHint(
+  {
+    code: "function reverse(head) { let prev = null, curr = head; while (curr) { const next = curr.next; curr.next = prev; prev = curr; curr = next; } return prev; }",
+    language: "JavaScript",
+    topic: "Linked Lists",
+    description: "This correct reversal truncates the list.",
+  },
+  {
+    searchFn: async () => [],
+    generateResponseFn: async () => JSON.stringify({
+      diagnosis: "The submitted loop saves the successor before changing the current link.",
+      hint: "Does the saved successor remain reachable after the current link changes?",
+      concept: "Linked-list pointer preservation",
+      debuggingStep: "Trace the saved successor through a two-node list.",
+    }),
+  }
+);
+assert.match(savedSuccessorHint.diagnosis, /saves the successor/);
+assert.equal(Object.keys(savedSuccessorHint).length, 4);
+console.log("PASS linked-list successor overwrite trace");
+
+const validButUnrecognized = await getDebugHint(
+  {
+    code: "function inspect(value) { return value; }",
+    language: "JavaScript",
+    topic: "Matrix traversal",
+    description: "Does this access run out of bounds?",
+  },
+  mockDependencies
+);
+assert.deepEqual(validButUnrecognized, mockHint);
+assert.deepEqual(Object.keys(validButUnrecognized).sort(), [
+  "concept",
+  "debuggingStep",
+  "diagnosis",
+  "hint",
+]);
+
+const contradictoryPrompt = [];
+const contradicted = await getDebugHint(
+  {
+    code: "function inspect(value) { return value; }",
+    language: "JavaScript",
+    topic: "Binary Search",
+    description: "My binary search is stuck in an infinite loop.",
+  },
+  {
+    searchFn: async () => [],
+    generateResponseFn: async (messages) => {
+      contradictoryPrompt.push(messages);
+      return JSON.stringify({
+        diagnosis: "No binary-search loop is present in the submitted function.",
+        hint: "Which loop in the submitted code is supposed to be stuck?",
+        concept: "Insufficient evidence",
+        debuggingStep: "Share the search loop and a small input that reproduces the behavior.",
+      });
+    },
+  }
+);
+assert.match(contradicted.diagnosis, /No binary-search loop is present/);
+assert.match(contradictoryPrompt[0].userPrompt, /<untrusted_request>/);
+assert.match(contradictoryPrompt[0].systemPrompt, /not instructions/);
+assert.match(contradictoryPrompt[0].systemPrompt, /Treat a reported symptom or suspected cause as a claim to investigate/);
+console.log("PASS contradictory report and untrusted-input boundaries");
+
+await assert.rejects(
+  () => getDebugHint({ code: "  ", language: "JavaScript" }, mockDependencies),
+  /Code and language are required/
+);
+console.log("PASS missing code is rejected");
+
+let malformedCalls = 0;
+const malformedFallback = await getModelHint(
+  {
+    code: "function f() {}",
+    language: "JavaScript",
+    topic: "Unknown",
+    description: "unclear",
+  },
+  {
+    searchFn: async () => [],
+    generateResponseFn: async () => {
+      malformedCalls++;
+      return "not json";
+    },
+  }
+);
+assert.equal(malformedCalls, 2, "Malformed output should trigger only one bounded retry");
+assert.match(malformedFallback.diagnosis, /could not generate a reliable diagnosis/i);
+assert.match(malformedFallback.hint, /smallest input that reproduces/i);
+assert.equal(Object.keys(malformedFallback).length, 4);
+
+let unavailableCalls = 0;
+const unavailableFallback = await getModelHint(
+  {
+    code: "function f() {}",
+    language: "JavaScript",
+    topic: "Unknown",
+    description: "unclear",
+  },
+  {
+    searchFn: async () => [],
+    generateResponseFn: async () => {
+      unavailableCalls++;
+      throw new Error("simulated Ollama unavailable");
+    },
+  }
+);
+assert.equal(unavailableCalls, 1, "Unavailable Ollama should not trigger a retry");
+assert.deepEqual(Object.keys(unavailableFallback).sort(), [
+  "concept",
+  "debuggingStep",
+  "diagnosis",
+  "hint",
+]);
+console.log("PASS malformed response retry bound and Ollama failure fallback");
+
+assert.throws(
+  () =>
+    normalizeHint({
+      ...mockHint,
+      diagnosis: "Check your code; there may be an issue.",
+    }),
+  /generic response/
+);
+assert.throws(
+  () => normalizeHint({ ...mockHint, extra: "unexpected" }),
+  /unexpected debugging hint fields/
+);
+assert.throws(
+  () => normalizeHint({ ...mockHint, hint: "   " }),
+  /incomplete debugging hint/
+);
+console.log("PASS generic, malformed, extra-field, and empty model responses rejected");
+
+const invalidRequest = {
+  body: { code: "", language: "JavaScript" },
+};
+const invalidResponse = {
+  statusCode: 200,
+  status(code) {
+    this.statusCode = code;
+    return this;
+  },
+  json(body) {
+    this.body = body;
+    return this;
+  },
+};
+await getDebuggingHint(invalidRequest, invalidResponse);
+assert.equal(invalidResponse.statusCode, 400);
+assert.equal(invalidResponse.body.success, false);
+console.log("PASS endpoint input validation");

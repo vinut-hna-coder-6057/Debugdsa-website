@@ -1,33 +1,69 @@
 import "./config/env.js";
 
+import express from "express";
 import mongoose from "mongoose";
-import { createServer } from "http";
-import { Server } from "socket.io";
-
-import app from "./app.js";
-
-import { setSocketInstance } from "./controllers/battleController.js";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import morgan from "morgan";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import passport from "./config/passport.js";
+import session from "express-session";
 
 //////////////////////////////////////////////////
-// HTTP SERVER
+// ROUTES
+//////////////////////////////////////////////////
+
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import bugRoutes from "./routes/bugRoutes.js";
+import solutionRoutes from "./routes/solutionRoutes.js";
+import battleRoutes from "./routes/battleRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import runCodeRoutes from "./routes/runCode.js";
+import certificateRoutes from "./routes/certificateRoutes.js";
+import recommendationRoutes from "./routes/recommendationRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+
+//////////////////////////////////////////////////
+// SOCKET.IO
+//////////////////////////////////////////////////
+
+import { createServer } from "http";
+import { Server } from "socket.io";
+import { setSocketInstance } from "./controllers/battleController.js";
+
+const app = express();
+
+//////////////////////////////////////////////////
+// CREATE HTTP SERVER
 //////////////////////////////////////////////////
 
 const server = createServer(app);
 
 //////////////////////////////////////////////////
-// SOCKET CONFIG
+// SOCKET.IO SETUP
 //////////////////////////////////////////////////
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
+const configuredOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:3000"];
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  : [];
+const localOrigins = process.env.NODE_ENV === "production"
+  ? []
+  : ["http://localhost:3000", "http://localhost:3001"];
+const allowedOrigins = [...new Set([...localOrigins, ...configuredOrigins])];
 
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
-    credentials: true,
-  },
+    credentials: true
+  }
 });
+//////////////////////////////////////////////////
+// MAKE SOCKET AVAILABLE TO CONTROLLERS
+//////////////////////////////////////////////////
 
 setSocketInstance(io);
 
@@ -36,6 +72,7 @@ setSocketInstance(io);
 //////////////////////////////////////////////////
 
 io.on("connection", (socket) => {
+
   console.log("⚡ User connected:", socket.id);
 
   socket.on("joinBattleRoom", (battleId) => {
@@ -50,36 +87,162 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
+
 });
 
 //////////////////////////////////////////////////
-// DATABASE
+// CORS
+//////////////////////////////////////////////////
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin} is not allowed`));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204
+  })
+);
+
+//////////////////////////////////////////////////
+// SECURITY
+//////////////////////////////////////////////////
+
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: false,
+    crossOriginEmbedderPolicy: false
+  })
+);
+
+//////////////////////////////////////////////////
+// RATE LIMIT
+//////////////////////////////////////////////////
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: "Too many requests, please try again later."
+});
+
+app.use("/api", limiter);
+
+//////////////////////////////////////////////////
+// BODY PARSER
+//////////////////////////////////////////////////
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+//////////////////////////////////////////////////
+// COOKIE PARSER
+//////////////////////////////////////////////////
+
+app.use(cookieParser());
+
+//////////////////////////////////////////////////
+// SESSION (for Passport OAuth)
+//////////////////////////////////////////////////
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET ,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax"
+    }
+  })
+);
+
+//////////////////////////////////////////////////
+// PASSPORT
+//////////////////////////////////////////////////
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+//////////////////////////////////////////////////
+// LOGGER
+//////////////////////////////////////////////////
+
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
+
+//////////////////////////////////////////////////
+// ROUTES
+//////////////////////////////////////////////////
+
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/bugs", bugRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/solutions", solutionRoutes);
+app.use("/api/battles", battleRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/code", runCodeRoutes);
+app.use("/api/certificate", certificateRoutes);
+app.use("/api/recommendations", recommendationRoutes);
+
+//////////////////////////////////////////////////
+// TEST ROUTE
+//////////////////////////////////////////////////
+
+app.get("/", (req, res) => {
+  res.send("Backend working 🚀");
+});
+
+//////////////////////////////////////////////////
+// 404 HANDLER
+//////////////////////////////////////////////////
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Route not found"
+  });
+});
+
+//////////////////////////////////////////////////
+// GLOBAL ERROR HANDLER
+//////////////////////////////////////////////////
+
+app.use((err, req, res, next) => {
+
+  console.error("GLOBAL ERROR:", err);
+
+  res.status(err.statusCode || 500).json({
+    message: err.message || "Internal server error"
+  });
+
+});
+
+//////////////////////////////////////////////////
+// DATABASE CONNECTION
 //////////////////////////////////////////////////
 
 const PORT = process.env.PORT || 5000;
-export { server, io };
 
-const startServer = async () => {
-  try {
-
-    await mongoose.connect(process.env.MONGO_URI);
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
 
     console.log("✅ MongoDB Connected Successfully");
 
     server.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
+  console.log(`🚀 Server running on port ${PORT}`);
+});
 
-  } catch (err) {
+  })
+  .catch((err) => {
 
-    console.error(
-      "❌ MongoDB connection failed:",
-      err.message
-    );
+    console.error("❌ MongoDB connection failed:", err.message);
 
-  }
-};
-
-if (process.env.NODE_ENV !== "test") {
-  startServer();
-}
+  });
