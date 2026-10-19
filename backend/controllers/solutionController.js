@@ -35,8 +35,8 @@ export const createSolution = async (req, res) => {
     ////////////////////////////////////////////////////////////
 
     let analysis = {
-      timeComplexity: "O(n)",
-      spaceComplexity: "O(1)"
+      timeComplexity: "ANALYSIS_UNAVAILABLE",
+      spaceComplexity: "ANALYSIS_UNAVAILABLE"
     };
 
     try {
@@ -48,7 +48,7 @@ export const createSolution = async (req, res) => {
 
     } catch (err) {
 
-      console.log("AI analysis failed");
+      console.warn("AI complexity analysis unavailable; solution submission will continue.");
 
     }
 

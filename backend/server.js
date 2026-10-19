@@ -200,6 +200,14 @@ app.get("/", (req, res) => {
   res.send("Backend working 🚀");
 });
 
+app.get("/health", (req, res) => {
+  const databaseReady = mongoose.connection.readyState === 1;
+  res.status(databaseReady ? 200 : 503).json({
+    status: databaseReady ? "ready" : "not_ready",
+    dependencies: { database: databaseReady ? "connected" : "disconnected" },
+  });
+});
+
 //////////////////////////////////////////////////
 // 404 HANDLER
 //////////////////////////////////////////////////

@@ -53,9 +53,9 @@ export const createBug = async (req, res) => {
     ////////////////////////////////////////////////////////////
 
     let analysis = {
-      timeComplexity: "O(n)",
-      spaceComplexity: "O(1)",
-      explanation: "AI analysis unavailable",
+      timeComplexity: "ANALYSIS_UNAVAILABLE",
+      spaceComplexity: "ANALYSIS_UNAVAILABLE",
+      explanation: "Complexity analysis is unavailable.",
     };
 
     try {
@@ -65,10 +65,7 @@ export const createBug = async (req, res) => {
         analysis = aiResult;
       }
     } catch (aiError) {
-      console.error(
-        "AI ANALYSIS FAILED:",
-        aiError.message
-      );
+      console.warn("AI complexity analysis unavailable; bug creation will continue.");
     }
 
     ////////////////////////////////////////////////////////////
