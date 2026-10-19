@@ -9,6 +9,7 @@ import axios from "axios";
 
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
+import { API_BASE_URL } from "../config";
 
 ////////////////////////////////////////////////////////////
 // AXIOS CONFIG
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(true);
 
-  const API = `${process.env.REACT_APP_API}/api`;
+  const API = API_BASE_URL;
 
   ////////////////////////////////////////////////////////////
   // LOAD USER

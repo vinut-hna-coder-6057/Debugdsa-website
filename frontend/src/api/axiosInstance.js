@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_BASE_URL } from "../config";
 
 const axiosInstance = axios.create({
-  baseURL: `${process.env.REACT_APP_API}/api`,
+  baseURL: API_BASE_URL,
   withCredentials: true, // 🔥 needed for cookies
   headers: {
     "Content-Type": "application/json"

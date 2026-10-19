@@ -63,6 +63,26 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/a
 
 ### Deployment
 
+This is a Create React App frontend, so `REACT_APP_API` is embedded into the
+static files at build time. Configure it in the frontend hosting service's
+build environment and rebuild after changing it. Use the backend origin only,
+for example `https://debugdsa-backend.onrender.com`; do not append `/api`.
+Local development defaults to `http://localhost:5000`. A production page
+configured with a missing API origin or a localhost origin displays a setup
+error instead of silently sending requests to localhost.
+
+The backend hosting service must deploy a branch containing
+`backend/routes/aiRoutes.js` and the `/api/ai` mount in `backend/server.js`.
+Configure backend `ALLOWED_ORIGINS` with the exact deployed frontend origin
+(scheme and host, no path), and set `FRONTEND_URL` to that origin for OAuth and
+password reset redirects. These settings must agree with the frontend's
+`REACT_APP_API` build value.
+
+The AI backend uses local Ollama. In a hosted environment, `OLLAMA_URL` must
+point to an Ollama service reachable from that backend service; localhost means
+the backend container itself. Keep credentials and private service addresses
+in hosting environment settings.
+
 This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
 
 ### `npm run build` fails to minify

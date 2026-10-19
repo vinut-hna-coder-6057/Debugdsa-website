@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../../config";
 
 function AdminUsers(){
 
@@ -18,7 +19,7 @@ const fetchUsers = async ()=>{
 try{
 
   const res = await axios.get(
-    `${process.env.REACT_APP_API}/api/admin/users`,
+    `${API_BASE_URL}/admin/users`,
     {
       withCredentials:true
     }
@@ -45,7 +46,7 @@ const deleteUser = async(id)=>{
 try{
 
   await axios.delete(
-    `${process.env.REACT_APP_API}/api/admin/user/${id}`,
+    `${API_BASE_URL}/admin/user/${id}`,
     {
       withCredentials:true
     }

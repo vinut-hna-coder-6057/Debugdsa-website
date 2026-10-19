@@ -135,22 +135,15 @@ export const googleCallback = async (req, res) => {
       );
     }
 
-    const token = jwt.sign(
-  { id: req.user._id },
-  process.env.JWT_SECRET,
-  { expiresIn: "7d" }
-);
+    const accessToken = generateAccessToken(req.user);
+    const refreshToken = generateRefreshToken(req.user);
+    req.user.refreshToken = refreshToken;
+    await req.user.save({ validateBeforeSave: false });
 
-res.cookie("token", token, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});
-
-res.redirect(
-  `${process.env.FRONTEND_URL}/oauth-success`
-);
+    res
+      .cookie("accessToken", accessToken, accessCookieOptions)
+      .cookie("refreshToken", refreshToken, refreshCookieOptions)
+      .redirect(`${process.env.FRONTEND_URL}/oauth-success`);
 
   } catch (error) {
 

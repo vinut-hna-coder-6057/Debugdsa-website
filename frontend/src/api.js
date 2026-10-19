@@ -1,3 +1,1 @@
-const BASE_URL = `${process.env.REACT_APP_API}/api`;
-
-export default BASE_URL;
+export { API_BASE_URL as default, API_BASE_URL } from "./config";
