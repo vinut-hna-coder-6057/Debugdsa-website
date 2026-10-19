@@ -45,10 +45,10 @@ function BugSolution() {
 
         <div style={infoRow}>
           <div style={infoItem}>
-            <strong>Time Complexity:</strong> {solution.timeComplexity}
+            <strong>Time Complexity:</strong> {formatComplexity(solution.timeComplexity)}
           </div>
           <div style={infoItem}>
-            <strong>Space Complexity:</strong> {solution.spaceComplexity}
+            <strong>Space Complexity:</strong> {formatComplexity(solution.spaceComplexity)}
           </div>
         </div>
 
@@ -63,6 +63,12 @@ function BugSolution() {
       </div>
     </div>
   );
+}
+
+function formatComplexity(value) {
+  return typeof value !== "string" || /^(?:ANALYSIS_UNAVAILABLE|AI_DISABLED|ANALYSIS_FAILED)$/.test(value)
+    ? "Unavailable"
+    : value;
 }
 
 const container = {

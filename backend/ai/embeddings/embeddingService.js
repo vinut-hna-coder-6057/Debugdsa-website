@@ -1,6 +1,7 @@
 import { pipeline } from "@xenova/transformers";
 
 let extractorPromise = null;
+const MODEL_ID = process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L6-v2";
 
 function normalizeEmbeddingText(text) {
   if (typeof text !== "string") {
@@ -14,7 +15,7 @@ async function getExtractor() {
   if (!extractorPromise) {
     extractorPromise = pipeline(
       "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2"
+      MODEL_ID
     ).catch((error) => {
       extractorPromise = null;
       throw error;
@@ -56,4 +57,5 @@ export {
   generateEmbedding,
   generateEmbeddings,
   normalizeEmbeddingText,
+  MODEL_ID,
 };

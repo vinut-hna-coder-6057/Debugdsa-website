@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Editor from "@monaco-editor/react";
@@ -24,6 +24,10 @@ const { user } = useAuth();
 
   const [output, setOutput] = useState("");
   const [input, setInput] = useState("");
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [coachResult, setCoachResult] = useState(null);
+  const [coachError, setCoachError] = useState("");
+  const coachAbortRef = useRef(null);
 const { refreshUser } = useAuth();
   /////////////////////////////////////////////////////////
   // FETCH DATA
@@ -42,6 +46,50 @@ const { refreshUser } = useAuth();
       console.error("Fetch bug error:", err);
     }
   }, [id]);
+
+  useEffect(() => {
+    setCoachResult(null);
+    setCoachError("");
+    coachAbortRef.current?.abort();
+    coachAbortRef.current = null;
+    return () => {
+      const current = coachAbortRef.current;
+      current?.abort();
+      if (coachAbortRef.current === current) coachAbortRef.current = null;
+    };
+  }, [id]);
+
+  const requestCoachHelp = async () => {
+    if (!bug || coachLoading) return;
+    const controller = new AbortController();
+    coachAbortRef.current?.abort();
+    coachAbortRef.current = controller;
+    setCoachLoading(true);
+    setCoachError("");
+    setCoachResult(null);
+    try {
+      const { data } = await axiosInstance.post("/ai/debug", {
+        code: bug.buggyCode || bug.code || "",
+        language: bug.language,
+        topic: bug.topic,
+        description: bug.description,
+        error: bug.error,
+        expectedOutput: bug.expectedOutput,
+      }, { signal: controller.signal });
+      if (!data || ["diagnosis", "hint", "concept", "debuggingStep"].some((field) => typeof data[field] !== "string")) {
+        throw new Error("Invalid AI response");
+      }
+      if (!controller.signal.aborted && coachAbortRef.current === controller) {
+        setCoachResult(data);
+      }
+    } catch (err) {
+      if (!controller.signal.aborted && coachAbortRef.current === controller) {
+        setCoachError(err.response?.data?.error?.message || err.response?.data?.message || "AI help is temporarily unavailable. You can retry, and the rest of this page remains available.");
+      }
+    } finally {
+      if (coachAbortRef.current === controller) setCoachLoading(false);
+    }
+  };
 
   const fetchSolutions = useCallback(async () => {
     try {
@@ -300,6 +348,21 @@ err.response?.data?.message ||
         <p style={meta}>
           {bug.language} • {bug.topic}
         </p>
+
+        <section aria-label="Debug Coach" style={coachPanel}>
+          <strong>Debug Coach</strong>
+          <p style={{ margin: "6px 0 10px", color: "#cbd5e1" }}>Get a code-grounded hint to help investigate this bug.</p>
+          <button type="button" style={runBtn} onClick={requestCoachHelp} disabled={coachLoading}>
+            {coachLoading ? "Thinking…" : coachResult ? "Try again" : "Ask for a hint"}
+          </button>
+          {coachError && <p role="alert" style={{ color: "#fca5a5" }}>{coachError}</p>}
+          {coachLoading && <p role="status">The coach is analyzing the code. This can take a little while on the first request.</p>}
+          {coachResult && <div aria-live="polite" style={coachResultBox}>
+            {[['Diagnosis', coachResult.diagnosis], ['Hint', coachResult.hint], ['Concept', coachResult.concept], ['Debugging step', coachResult.debuggingStep]].map(([label, value]) => (
+              <p key={label}><strong>{label}: </strong>{value}</p>
+            ))}
+          </div>}
+        </section>
 
         <div style={tabHeader}>
 
@@ -841,6 +904,16 @@ const outputBox = {
   padding: "10px",
   background: "#020617",
   border: "1px solid #1e293b"
+};
+
+const coachPanel = {
+  margin: "14px 0", padding: "14px", borderRadius: "10px",
+  border: "1px solid #334155", background: "#111827"
+};
+
+const coachResultBox = {
+  marginTop: "12px", padding: "12px", borderRadius: "8px",
+  background: "#020617", lineHeight: 1.55, whiteSpace: "pre-wrap"
 };
 
 const backButton = {
