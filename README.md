@@ -8,7 +8,6 @@
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=flat-square\&logo=node.js)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?style=flat-square\&logo=mongodb)](https://mongodb.com/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-Realtime-010101?style=flat-square\&logo=socket.io)](https://socket.io/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991?style=flat-square\&logo=openai)](https://openai.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 </div>
@@ -66,28 +65,11 @@ Unlike traditional coding platforms that focus only on writing solutions, DebugD
 
 ## 🤖 AI-Powered Analysis
 
-* GPT-4o-mini analyzes submitted buggy code
-* Returns:
-
-  * Time Complexity
-  * Space Complexity
-  * Plain-English explanation
-* Handles:
-
-  * Nested loops
-  * Recursive functions
-  * Recurrence relation derivation
-  * Master Theorem applications
-* Graceful fallback if API key is not configured
-* Every bug posted on the platform is automatically analyzed by GPT-4o-mini:
-
-```json
-{
-  "timeComplexity": "O(n log n)",
-  "spaceComplexity": "O(n)",
-  "explanation": "The outer loop runs n times, and the inner binary search runs log n per iteration, giving O(n log n) overall time complexity."
-}
-```
+Complexity analysis uses local Ollama on bug and solution submissions. It is
+best-effort and time-bounded. If the model is missing, unavailable, times out,
+or returns an invalid estimate, the existing complexity fields contain
+`ANALYSIS_UNAVAILABLE`; submissions continue normally. Estimates are model
+outputs and should be reviewed rather than treated as verified facts.
 
 ### Local AI Debug Coach
 
@@ -106,20 +88,36 @@ ollama run qwen2.5:3b-instruct
 ```
 
 Keep Ollama running, configure `OLLAMA_URL` and `OLLAMA_MODEL` in
-`backend/.env` if the defaults do not apply, then run the backend Coach checks:
+`backend/.env` if the defaults do not apply. Model and embedding weights load
+only when AI is first requested; the embedding cache is written atomically to
+the OS temporary directory (`debugdsa-ai`) by default. Set `AI_CACHE_DIR` to a
+writable persistent directory where you prefer to keep it. No AI dependency is
+required for ordinary server startup. The authenticated coach endpoint is
+`POST /api/ai/debug` and accepts `code`, `language`, `topic`, `description`,
+`error`, and `expectedOutput`; success returns those four text fields
+`diagnosis`, `hint`, `concept`, and `debuggingStep` alongside `success: true`.
+It accepts JavaScript, Python, Java, C++, and C. The coach does not execute code
+and provides hints rather than corrected implementations. Submitted code is
+processed by configured local Ollama and the local embedding model; the AI
+route does not log source or prompts. AI diagnoses can still be wrong, and deterministic checks cover only a
+few JavaScript/TypeScript patterns.
+
+Run the model-free regression suite with:
 
 ```bash
 cd backend
-npm run test:ai:embedding
-npm run test:ai:ollama
 npm run test:ai
 ```
 
-The embedding test verifies a 384-dimensional MiniLM vector is generated. The
-Ollama test checks a local model response. The Coach test checks top-5 retrieval
-for representative bugs and exercises all four response fields through the
-controller. Embeddings are cached in
-`backend/ai/embeddings/KnowledgeEmbeddings.json`.
+`npm run test:ai:ollama` sends a real request to the configured local model;
+`npm run test:ai:embedding` loads or downloads the embedding model and should be
+run separately. Neither is needed for ordinary CI. `OLLAMA_TIMEOUT_MS`,
+`COMPLEXITY_TIMEOUT_MS`, `AI_CACHE_DIR`, `AI_RELEVANCE_THRESHOLD`,
+`AI_RATE_LIMIT_MAX`, and `AI_MAX_CONCURRENT` are optional configuration values.
+The default model is `qwen2.5:3b-instruct` and
+the embedding model is `Xenova/all-MiniLM-L6-v2`. The active `server.js`
+exposes `/health`, which reports readiness from MongoDB connectivity and does
+not require Ollama or embeddings to be loaded.
 
 
 ---
@@ -167,7 +165,7 @@ controller. Embeddings are cached in
 | Backend        | Node.js, Express.js, Socket.IO        |
 | Database       | MongoDB, Mongoose                     |
 | Authentication | JWT, Passport.js, Firebase OAuth      |
-| AI Integration | OpenAI GPT-4o-mini                    |
+| AI Integration | Local Ollama, Xenova Transformers     |
 | Security       | Helmet, bcryptjs, express-rate-limit  |
 | Email Service  | Nodemailer                            |
 | PDF Generation | PDFKit                                |
@@ -220,7 +218,7 @@ DebugDSA-platform/
 │   │   └── userRoutes.js             # User profile & leaderboard routes
 │   │
 │   ├── utils/
-│   │   ├── complexityAnalyzer.js     # GPT-4o-mini complexity analysis
+│   │   ├── complexityAnalyzer.js     # Bounded best-effort local analysis
 │   │   ├── certificationChecker.js   # Certification eligibility logic
 │   │   └── sendEmail.js              # Nodemailer email utility
 │   │
@@ -313,7 +311,7 @@ DebugDSA-platform/
 
 * Node.js >= 18
 * MongoDB
-* OpenAI API Key (Optional)
+* Ollama (optional; needed only for AI features)
 * Google OAuth Credentials (Optional)
 
 ---
@@ -343,9 +341,9 @@ MONGO_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
 JWT_REFRESH_SECRET=your_refresh_secret
 
-OPENAI_API_KEY=your_openai_key
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:3b-instruct
+AI_CACHE_DIR=your_writable_cache_directory
 
 FRONTEND_URL=http://localhost:3000
 ```

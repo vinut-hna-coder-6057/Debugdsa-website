@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../config";
 
 function ForgotPassword() {
 
@@ -20,10 +21,8 @@ try {
 
 setLoading(true);
 
-const API_BASE = `${process.env.REACT_APP_API}/api`;
-
 const res = await axios.post(
-  `${API_BASE}/auth/forgot-password`,
+  `${API_BASE_URL}/auth/forgot-password`,
   { email }
 );
 

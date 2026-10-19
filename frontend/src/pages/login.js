@@ -10,6 +10,7 @@ useState,
 useEffect
 } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../config";
 function Login() {
 
   const { login } = useAuth();
@@ -42,7 +43,7 @@ try {
 
 const res = await axios.post(
 
-`${process.env.REACT_APP_API}/api/auth/firebase-login`,
+`${API_BASE_URL}/auth/firebase-login`,
 
 {
 credential:
@@ -81,7 +82,7 @@ try {
 
 const res = await axios.post(
 
-`${process.env.REACT_APP_API}/api/auth/firebase-login`,
+`${API_BASE_URL}/auth/firebase-login`,
 
 {
 credential:

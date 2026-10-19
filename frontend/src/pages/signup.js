@@ -6,6 +6,7 @@ import { FcGoogle } from "react-icons/fc";
 import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../firebase";
 import { useAuth } from "../context/Authcontext";
+import { API_BASE_URL } from "../config";
 
 function Signup() {
 
@@ -20,7 +21,7 @@ function Signup() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const API = `${process.env.REACT_APP_API}/api`;
+  const API = API_BASE_URL;
 
   //////////////////////////////////////////////////////
   // GOOGLE SIGNUP

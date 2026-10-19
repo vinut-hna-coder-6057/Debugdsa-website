@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../../config";
 
 function AdminBugs() {
 
@@ -18,7 +19,7 @@ const fetchBugs = async () =>{
 try{
 
   const res = await axios.get(
-    `${process.env.REACT_APP_API}/api/admin/bugs`,
+    `${API_BASE_URL}/admin/bugs`,
     {
       withCredentials:true
     }
@@ -43,7 +44,7 @@ const deleteBug = async(id)=>{
 try{
 
   await axios.delete(
-    `${process.env.REACT_APP_API}/api/admin/bugs/${id}`,
+    `${API_BASE_URL}/admin/bugs/${id}`,
     {
       withCredentials:true
     }

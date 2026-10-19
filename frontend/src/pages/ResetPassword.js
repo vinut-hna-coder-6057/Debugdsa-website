@@ -5,6 +5,7 @@ import {
 } from "react-router-dom";
 
 import axios from "axios";
+import { API_BASE_URL } from "../config";
 
 function ResetPassword() {
 
@@ -64,7 +65,7 @@ function ResetPassword() {
       setLoading(true);
 
 const res = await axios.put(
-  `${process.env.REACT_APP_API}/api/auth/reset-password/${token}`,
+  `${API_BASE_URL}/auth/reset-password/${token}`,
   { password }
 );
       setMessage(res.data.message);

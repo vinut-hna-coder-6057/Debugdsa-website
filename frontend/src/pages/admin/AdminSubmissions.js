@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../../config";
 
 function AdminSubmissions(){
 
@@ -18,7 +19,7 @@ const fetchSubs = async ()=>{
 try{
 
   const res = await axios.get(
-    `${process.env.REACT_APP_API}/api/admin/submissions`,
+    `${API_BASE_URL}/admin/submissions`,
     {
       withCredentials:true
     }
@@ -43,7 +44,7 @@ const deleteSub = async(id)=>{
 try{
 
   await axios.delete(
-    `${process.env.REACT_APP_API}/api/admin/submissions/${id}`,
+    `${API_BASE_URL}/admin/submissions/${id}`,
     {
       withCredentials:true
     }

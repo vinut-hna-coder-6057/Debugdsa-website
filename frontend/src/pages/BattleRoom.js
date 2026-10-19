@@ -4,10 +4,7 @@ import axiosInstance from "../api/axiosInstance";
 import CodeEditor from "../components/CodeEditor";
 import { motion } from "framer-motion";
 import { io } from "socket.io-client";
-
-const socket = io("process.env.REACT_APP_API", {
-  withCredentials: true
-});
+import { API_CONFIG_ERROR, API_ORIGIN } from "../config";
 
 function BattleRoom() {
   const battleRoomRef = useRef(null);
@@ -137,22 +134,45 @@ function BattleRoom() {
   ////////////////////////////////////////////////////////
 
   useEffect(() => {
-    socket.emit("joinBattleRoom", id);
+    if (API_CONFIG_ERROR) return undefined;
 
-    socket.on("playerJoined", () => {
-      fetchBattle();
+    const socket = io(API_ORIGIN, {
+      withCredentials: true,
+      autoConnect: false,
     });
 
-    socket.on("solutionSubmitted", () => {
-      fetchSubmissions();
-    });
+    const joinRoom = () => socket.emit("joinBattleRoom", id);
+    const handlePlayerJoined = async () => {
+      try {
+        const res = await axiosInstance.get(`/battles/${id}`);
+        setBattle(res.data);
+      } catch (err) {
+        console.error("Battle fetch error:", err);
+      }
+    };
+    const handleSolutionSubmitted = async () => {
+      try {
+        const res = await axiosInstance.get(`/battles/submissions/${id}`);
+        setSubmissions(res.data);
+      } catch (err) {
+        console.error("Submissions error:", err);
+      }
+    };
+    const handleLeaderboardUpdated = (data) => setLeaderboard(data);
 
-    socket.on("leaderboardUpdated", (data) => {
-      setLeaderboard(data);
-    });
+    socket.on("connect", joinRoom);
+    socket.on("playerJoined", handlePlayerJoined);
+    socket.on("solutionSubmitted", handleSolutionSubmitted);
+    socket.on("leaderboardUpdated", handleLeaderboardUpdated);
+    socket.connect();
 
     return () => {
-      socket.emit("leaveBattleRoom", id);
+      socket.off("connect", joinRoom);
+      socket.off("playerJoined", handlePlayerJoined);
+      socket.off("solutionSubmitted", handleSolutionSubmitted);
+      socket.off("leaderboardUpdated", handleLeaderboardUpdated);
+      if (socket.connected) socket.emit("leaveBattleRoom", id);
+      socket.disconnect();
     };
   }, [id]);
 
