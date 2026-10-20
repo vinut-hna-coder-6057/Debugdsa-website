@@ -429,19 +429,34 @@ async function getModelHint(
   } = {}
 ) {
   const retrievalQuery = [
-    topic,
-    description,
-    error,
-    expectedOutput,
+    `Language: ${language}`,
+    topic && `Topic: ${topic}`,
+    description && `Problem: ${description}`,
+    error && `Observed error: ${error}`,
+    expectedOutput && `Expected output: ${expectedOutput}`,
+    `Submitted code excerpt: ${code.slice(0, 1_200)}`,
   ]
     .filter((value) => typeof value === "string" && value.trim())
     .join("\n");
-  const retrievedKnowledge = await searchFn(retrievalQuery || code, 5);
-
-  const context = retrievedKnowledge.length
-    ? retrievedKnowledge
-      .map(({ topic: knowledgeTopic, bugType, title, content }) => ({ knowledgeTopic, bugType, title, content }))
-    : [];
+  const retrievedKnowledge = await searchFn(retrievalQuery, 5);
+  const seenDocuments = new Set();
+  const context = (Array.isArray(retrievedKnowledge) ? retrievedKnowledge : [])
+    .filter((document) => document && typeof document === "object")
+    .map(({ id, topic: knowledgeTopic, bugType, title, content }) => ({
+      id: typeof id === "string" ? id.slice(0, 120) : "",
+      knowledgeTopic: typeof knowledgeTopic === "string" ? knowledgeTopic.slice(0, 120) : "",
+      bugType: typeof bugType === "string" ? bugType.slice(0, 120) : "",
+      title: typeof title === "string" ? title.slice(0, 200) : "",
+      content: typeof content === "string" ? content.slice(0, 1_800) : "",
+    }))
+    .filter((document) => document.content.trim())
+    .filter((document) => {
+      const key = document.id || `${document.knowledgeTopic}\n${document.title}\n${document.content}`;
+      if (seenDocuments.has(key)) return false;
+      seenDocuments.add(key);
+      return true;
+    })
+    .slice(0, 5);
   const untrustedData = JSON.stringify({
     request: {
       language,
