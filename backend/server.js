@@ -34,7 +34,7 @@ import { Server } from "socket.io";
 import { setSocketInstance } from "./controllers/battleController.js";
 
 const app = express();
-
+app.set('trust proxy', 1);
 //////////////////////////////////////////////////
 // CREATE HTTP SERVER
 //////////////////////////////////////////////////
