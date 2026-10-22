@@ -4,6 +4,9 @@ import { analyzeComplexity } from "../../utils/complexityAnalyzer.js";
 
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.OLLAMA_URL;
+const originalNodeEnv = process.env.NODE_ENV;
+const originalAccessId = process.env.OLLAMA_ACCESS_CLIENT_ID;
+const originalAccessSecret = process.env.OLLAMA_ACCESS_CLIENT_SECRET;
 const request = { systemPrompt: "system", userPrompt: "bounded test" };
 const ok = (content = "{\"ok\":true}") => ({ ok: true, status: 200, json: async () => ({ message: { content } }) });
 
@@ -14,8 +17,31 @@ try {
   assert.throws(() => getOllamaConfig(), (error) => error.category === "configuration");
 
   process.env.OLLAMA_URL = "http://localhost:11434/";
+  process.env.NODE_ENV = "development";
+  delete process.env.OLLAMA_ACCESS_CLIENT_ID;
+  delete process.env.OLLAMA_ACCESS_CLIENT_SECRET;
   globalThis.fetch = async () => ok();
   assert.equal(await generateResponse(request), "{\"ok\":true}");
+
+  process.env.NODE_ENV = "production";
+  delete process.env.OLLAMA_URL;
+  assert.throws(() => getOllamaConfig(), (error) => error.category === "configuration");
+  process.env.OLLAMA_URL = "http://localhost:11434";
+  assert.throws(() => getOllamaConfig(), (error) => error.category === "configuration");
+  process.env.OLLAMA_URL = "https://ollama.example.test";
+  process.env.OLLAMA_ACCESS_CLIENT_ID = "test-client-id";
+  process.env.OLLAMA_ACCESS_CLIENT_SECRET = "test-client-secret";
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.headers["CF-Access-Client-Id"], "test-client-id");
+    assert.equal(options.headers["CF-Access-Client-Secret"], "test-client-secret");
+    return ok();
+  };
+  assert.equal(await generateResponse(request), "{\"ok\":true}");
+  delete process.env.OLLAMA_ACCESS_CLIENT_SECRET;
+  assert.throws(() => getOllamaConfig(), (error) => error.category === "configuration");
+  process.env.NODE_ENV = "test";
+  process.env.OLLAMA_URL = "http://localhost:11434/";
+  delete process.env.OLLAMA_ACCESS_CLIENT_ID;
 
   globalThis.fetch = async () => ({ ok: false, status: 404 });
   await assert.rejects(generateResponse(request), (error) => error.category === "model_missing");
@@ -68,4 +94,10 @@ try {
   globalThis.fetch = originalFetch;
   if (originalUrl === undefined) delete process.env.OLLAMA_URL;
   else process.env.OLLAMA_URL = originalUrl;
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = originalNodeEnv;
+  if (originalAccessId === undefined) delete process.env.OLLAMA_ACCESS_CLIENT_ID;
+  else process.env.OLLAMA_ACCESS_CLIENT_ID = originalAccessId;
+  if (originalAccessSecret === undefined) delete process.env.OLLAMA_ACCESS_CLIENT_SECRET;
+  else process.env.OLLAMA_ACCESS_CLIENT_SECRET = originalAccessSecret;
 }

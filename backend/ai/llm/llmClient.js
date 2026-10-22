@@ -17,13 +17,25 @@ export class AIServiceError extends Error {
 }
 
 export function getOllamaConfig() {
+  const configuredUrl = process.env.OLLAMA_URL?.trim();
+  if (process.env.NODE_ENV === "production" && !configuredUrl) {
+    throw new AIServiceError("configuration", "AI service configuration is invalid.");
+  }
   let url;
   try {
-    url = new URL(process.env.OLLAMA_URL || DEFAULT_URL);
+    url = new URL(configuredUrl || DEFAULT_URL);
   } catch {
     throw new AIServiceError("configuration", "AI service configuration is invalid.");
   }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || !['', '/'].includes(url.pathname)) {
+    throw new AIServiceError("configuration", "AI service configuration is invalid.");
+  }
+  if (process.env.NODE_ENV === "production" && ["localhost", "127.0.0.1", "::1"].includes(url.hostname.toLowerCase())) {
+    throw new AIServiceError("configuration", "AI service configuration is invalid.");
+  }
+  const accessId = process.env.OLLAMA_ACCESS_CLIENT_ID?.trim();
+  const accessSecret = process.env.OLLAMA_ACCESS_CLIENT_SECRET?.trim();
+  if (Boolean(accessId) !== Boolean(accessSecret) || (accessId && url.protocol !== "https:")) {
     throw new AIServiceError("configuration", "AI service configuration is invalid.");
   }
   const model = (process.env.OLLAMA_MODEL || DEFAULT_MODEL).trim();
@@ -51,7 +63,15 @@ export async function generateResponse({ systemPrompt, userPrompt, signal, timeo
     try {
       response = await fetch(`${baseUrl}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.OLLAMA_ACCESS_CLIENT_ID?.trim() && process.env.OLLAMA_ACCESS_CLIENT_SECRET?.trim()
+            ? {
+                "CF-Access-Client-Id": process.env.OLLAMA_ACCESS_CLIENT_ID.trim(),
+                "CF-Access-Client-Secret": process.env.OLLAMA_ACCESS_CLIENT_SECRET.trim(),
+              }
+            : {}),
+        },
         body: JSON.stringify({
           model, stream: false, format: "json",
           messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],

@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import knowledgeBase from "../knowledgeBase.js";
 import { generateEmbedding, generateEmbeddings, normalizeEmbeddingText, MODEL_ID } from "../embeddings/embeddingService.js";
+import { AIServiceError } from "../llm/llmClient.js";
 
 const EMBEDDING_VERSION = 3;
 const RELEVANCE_THRESHOLD = Number.isFinite(Number(process.env.AI_RELEVANCE_THRESHOLD))
@@ -79,8 +80,17 @@ export async function initializeVectorStore() {
 export async function search(query, topK = 5) {
   if (typeof query !== "string" || !query.trim() || !knowledgeBase.length) return [];
   const limit = Number.isFinite(Number(topK)) ? Math.max(1, Math.min(10, Math.floor(Number(topK)))) : 5;
-  await initializeVectorStore();
-  const queryEmbedding = await embeddingProvider.generateEmbedding(query);
+  try {
+    await initializeVectorStore();
+  } catch {
+    throw new AIServiceError("embedding_unavailable", "The embedding service is unavailable.");
+  }
+  let queryEmbedding;
+  try {
+    queryEmbedding = await embeddingProvider.generateEmbedding(query);
+  } catch {
+    throw new AIServiceError("embedding_unavailable", "The embedding service is unavailable.");
+  }
   const queryTerms = tokenize(query);
   const termsByDocument = documents.map((doc) => tokenize(`${doc.topic} ${doc.bugType} ${doc.title} ${doc.content}`));
   const frequencies = new Map();
