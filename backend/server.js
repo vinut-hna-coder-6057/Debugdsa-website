@@ -4,11 +4,11 @@ import express from "express";
 import mongoose from "mongoose";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import passport from "./config/passport.js";
 import session from "express-session";
+import { requestObservability } from "./middleware/requestObservability.js";
 
 //////////////////////////////////////////////////
 // ROUTES
@@ -24,6 +24,7 @@ import runCodeRoutes from "./routes/runCode.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
 import recommendationRoutes from "./routes/recommendationRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 
 //////////////////////////////////////////////////
 // SOCKET.IO
@@ -35,6 +36,7 @@ import { setSocketInstance } from "./controllers/battleController.js";
 
 const app = express();
 app.set('trust proxy', 1);
+app.use(requestObservability());
 //////////////////////////////////////////////////
 // CREATE HTTP SERVER
 //////////////////////////////////////////////////
@@ -105,6 +107,7 @@ app.use(
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["X-Request-Id"],
     optionsSuccessStatus: 204
   })
 );
@@ -170,14 +173,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 //////////////////////////////////////////////////
-// LOGGER
-//////////////////////////////////////////////////
-
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
-
-//////////////////////////////////////////////////
 // ROUTES
 //////////////////////////////////////////////////
 
@@ -191,6 +186,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/code", runCodeRoutes);
 app.use("/api/certificate", certificateRoutes);
 app.use("/api/recommendations", recommendationRoutes);
+app.use("/api/search", searchRoutes);
 
 //////////////////////////////////////////////////
 // TEST ROUTE
