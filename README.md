@@ -74,13 +74,13 @@ outputs and should be reviewed rather than treated as verified facts.
 ### Local AI Debug Coach
 
 The bug-solving page also provides an authenticated, RAG-based debugging coach.
-It uses Ollama locally with `qwen2.5:3b-instruct` and the
-`Xenova/all-MiniLM-L6-v2` embedding model; it does not use OpenAI. The Coach
-retrieves up to five related debugging concepts and returns a diagnosis, a
-conceptual hint, the relevant concept, and one concrete debugging step without
-providing corrected code.
+The backend selects its AI provider explicitly via `AI_PROVIDER`. The default is
+`ollama` for local development, and `groq` is supported for hosted production.
+The Coach retrieves up to five related debugging concepts and returns a
+diagnosis, a conceptual hint, the relevant concept, and one concrete debugging
+step without providing corrected code.
 
-Install and start Ollama, then download the model:
+For local development with Ollama, install and start Ollama, then download the model:
 
 ```bash
 ollama pull qwen2.5:3b-instruct
@@ -88,9 +88,11 @@ ollama run qwen2.5:3b-instruct
 ```
 
 Keep Ollama running, configure `OLLAMA_URL` and `OLLAMA_MODEL` in
-`backend/.env` if the defaults do not apply. Model and embedding weights load
-only when AI is first requested; the embedding cache is written atomically to
-the OS temporary directory (`debugdsa-ai`) by default. Set `AI_CACHE_DIR` to a
+`backend/.env` if the defaults do not apply. For hosted usage, set
+`AI_PROVIDER=groq`, `GROQ_API_KEY`, and optionally `GROQ_MODEL`. The backend
+keeps API keys only on the server side. Model and embedding weights load only
+when AI is first requested; the embedding cache is written atomically to the OS
+temporary directory (`debugdsa-ai`) by default. Set `AI_CACHE_DIR` to a
 writable persistent directory where you prefer to keep it. No AI dependency is
 required for ordinary server startup. The authenticated coach endpoint is
 `POST /api/ai/debug` and accepts `code`, `language`, `topic`, `description`,
@@ -98,9 +100,9 @@ required for ordinary server startup. The authenticated coach endpoint is
 `diagnosis`, `hint`, `concept`, and `debuggingStep` alongside `success: true`.
 It accepts JavaScript, Python, Java, C++, and C. The coach does not execute code
 and provides hints rather than corrected implementations. Submitted code is
-processed by configured local Ollama and the local embedding model; the AI
-route does not log source or prompts. AI diagnoses can still be wrong, and deterministic checks cover only a
-few JavaScript/TypeScript patterns.
+processed by the configured backend provider and the local embedding model; the
+AI route does not log source or prompts. AI diagnoses can still be wrong, and
+deterministic checks cover only a few JavaScript/TypeScript patterns.
 
 Run the model-free regression suite with:
 

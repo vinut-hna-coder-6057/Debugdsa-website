@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { AIServiceError, generateResponse, getOllamaConfig } from "./llmClient.js";
+﻿import assert from "node:assert/strict";
+import { AIServiceError, generateResponse, getGroqConfig, getOllamaConfig } from "./llmClient.js";
 import { analyzeComplexity } from "../../utils/complexityAnalyzer.js";
 
 const originalFetch = globalThis.fetch;
@@ -7,13 +7,18 @@ const originalUrl = process.env.OLLAMA_URL;
 const originalNodeEnv = process.env.NODE_ENV;
 const originalAccessId = process.env.OLLAMA_ACCESS_CLIENT_ID;
 const originalAccessSecret = process.env.OLLAMA_ACCESS_CLIENT_SECRET;
+const originalProvider = process.env.AI_PROVIDER;
+const originalGroqKey = process.env.GROQ_API_KEY;
+const originalGroqModel = process.env.GROQ_MODEL;
 const request = { systemPrompt: "system", userPrompt: "bounded test" };
 const ok = (content = "{\"ok\":true}") => ({ ok: true, status: 200, json: async () => ({ message: { content } }) });
+const okGroq = (content = "{\"ok\":true}") => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) });
 
 try {
+  delete process.env.AI_PROVIDER;
   process.env.OLLAMA_URL = "file:///tmp/invalid";
   assert.throws(() => getOllamaConfig(), (error) => error instanceof AIServiceError && error.category === "configuration");
-  process.env.OLLAMA_URL = "http://user:pass@localhost:11434";
+  process.env.OLLAMA_URL = "******localhost:11434";
   assert.throws(() => getOllamaConfig(), (error) => error.category === "configuration");
 
   process.env.OLLAMA_URL = "http://localhost:11434/";
@@ -39,9 +44,20 @@ try {
   assert.equal(await generateResponse(request), "{\"ok\":true}");
   delete process.env.OLLAMA_ACCESS_CLIENT_SECRET;
   assert.throws(() => getOllamaConfig(), (error) => error.category === "configuration");
+
   process.env.NODE_ENV = "test";
   process.env.OLLAMA_URL = "http://localhost:11434/";
   delete process.env.OLLAMA_ACCESS_CLIENT_ID;
+  process.env.AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  process.env.GROQ_MODEL = "openai/gpt-oss-20b";
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, "https://api.groq.com/openai/v1/chat/completions");
+    assert.equal(options.headers.Authorization, "Bearer test-key");
+    return okGroq('{"ok":true}');
+  };
+  assert.equal(await generateResponse(request), "{\"ok\":true}");
+  assert.equal(getGroqConfig().model, "openai/gpt-oss-20b");
 
   globalThis.fetch = async () => ({ ok: false, status: 404 });
   await assert.rejects(generateResponse(request), (error) => error.category === "model_missing");
@@ -70,7 +86,7 @@ try {
 
   const pending = [];
   globalThis.fetch = async (_url, options) => new Promise((resolve, reject) => {
-    pending.push(() => resolve(ok()));
+    pending.push(() => resolve(okGroq()));
     options.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
   });
   const one = generateResponse(request);
@@ -89,9 +105,15 @@ try {
   assert.equal(badComplexity.timeComplexity, "ANALYSIS_UNAVAILABLE");
   assert.equal(badComplexity.spaceComplexity, "ANALYSIS_UNAVAILABLE");
 
-  console.log("PASS Ollama client, complexity fallback, bounds, errors, timeouts, cancellation, and concurrency");
+  console.log("PASS provider-aware AI client, complexity fallback, bounds, errors, timeouts, cancellation, and concurrency");
 } finally {
   globalThis.fetch = originalFetch;
+  if (originalProvider === undefined) delete process.env.AI_PROVIDER;
+  else process.env.AI_PROVIDER = originalProvider;
+  if (originalGroqKey === undefined) delete process.env.GROQ_API_KEY;
+  else process.env.GROQ_API_KEY = originalGroqKey;
+  if (originalGroqModel === undefined) delete process.env.GROQ_MODEL;
+  else process.env.GROQ_MODEL = originalGroqModel;
   if (originalUrl === undefined) delete process.env.OLLAMA_URL;
   else process.env.OLLAMA_URL = originalUrl;
   if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
@@ -101,3 +123,4 @@ try {
   if (originalAccessSecret === undefined) delete process.env.OLLAMA_ACCESS_CLIENT_SECRET;
   else process.env.OLLAMA_ACCESS_CLIENT_SECRET = originalAccessSecret;
 }
+
