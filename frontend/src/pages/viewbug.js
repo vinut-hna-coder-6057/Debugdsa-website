@@ -5,6 +5,7 @@ import Editor from "@monaco-editor/react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/Authcontext";
+import { getAIRequestValidationError } from "../api/aiRequest";
 
 
 function ViewBug() {
@@ -68,14 +69,20 @@ const { refreshUser } = useAuth();
     setCoachError("");
     setCoachResult(null);
     try {
-      const { data } = await axiosInstance.post("/ai/debug", {
+      const payload = {
         code: bug.buggyCode || bug.code || "",
         language: bug.language,
         topic: bug.topic,
         description: bug.description,
         error: bug.error,
         expectedOutput: bug.expectedOutput,
-      }, { signal: controller.signal });
+      };
+      const validationError = getAIRequestValidationError(payload);
+      if (validationError) {
+        setCoachError(validationError);
+        return;
+      }
+      const { data } = await axiosInstance.post("/ai/debug", payload, { signal: controller.signal });
       if (!data || ["diagnosis", "hint", "concept", "debuggingStep"].some((field) => typeof data[field] !== "string")) {
         throw new Error("Invalid AI response");
       }

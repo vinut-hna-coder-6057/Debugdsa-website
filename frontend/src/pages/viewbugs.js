@@ -2,11 +2,14 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import axiosInstance from "../api/axiosInstance";
+import { useAuth } from "../context/Authcontext";
+import { fetchRecommendedBugs } from "../api/recommendations";
 
 function ViewBugs() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const [bugs,setBugs] = useState([]);
   const [recommended,setRecommended] = useState([]);
@@ -58,17 +61,14 @@ const fetchRecommendations = async()=>{
 
 try{
 
-const res = await axiosInstance.get("/recommendations/bugs");
-
-const recList = Array.isArray(res.data)
-? res.data
-: res.data.bugs || [];
-
-setRecommended(recList);
+const result = await fetchRecommendedBugs(user);
+setRecommended(result.bugs);
 
 }catch(err){
 
-console.error("Recommendation fetch error:",err);
+if (err.response?.status !== 401) {
+  console.error("Recommendation fetch error:",err);
+}
 setRecommended([]);
 
 }
@@ -124,6 +124,11 @@ setMode("all");
 const showRecommended = async()=>{
 
 setMode("recommended");
+
+if (!user) {
+  setRecommended([]);
+  return;
+}
 
 if(recommended.length===0){
 await fetchRecommendations();
@@ -222,6 +227,10 @@ onChange={(e)=>setSortOrder(e.target.value)}
 </div>
 
 {/* BUG GRID */}
+
+{mode === "recommended" && !user && (
+<p style={{opacity:0.7}}>Sign in to see your recommendations.</p>
+)}
 
 {filteredBugs.length===0?(
 <p style={{opacity:0.7}}>No bugs found.</p>
