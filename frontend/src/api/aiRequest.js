@@ -1,10 +1,12 @@
+import axiosInstance from "./axiosInstance";
+
 const AI_LANGUAGES = new Set(["JavaScript", "Python", "Java", "C++", "C", "Go", "TypeScript"]);
 const AI_FIELD_LIMITS = {
-  code: 16_000,
-  description: 2_000,
+  code: 20_000,
+  description: 5_000,
   error: 2_000,
   expectedOutput: 2_000,
-  topic: 120,
+  topic: 100,
 };
 
 export function getAIRequestValidationError(payload = {}) {
@@ -19,4 +21,14 @@ export function getAIRequestValidationError(payload = {}) {
     }
   }
   return null;
+}
+
+export async function postAIDebugRequest(user, payload, config, client = axiosInstance) {
+  if (!user) return { status: "unauthenticated" };
+
+  const validationError = getAIRequestValidationError(payload);
+  if (validationError) return { status: "invalid", error: validationError };
+
+  const response = await client.post("/ai/debug", payload, config);
+  return { status: "success", data: response.data };
 }

@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import axios from "axios";
 import { FcGoogle } from "react-icons/fc";
 import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../firebase";
 import { useAuth } from "../context/Authcontext";
-import { API_BASE_URL } from "../config";
+import axiosInstance from "../api/axiosInstance";
 
 function Signup() {
 
@@ -20,8 +19,6 @@ function Signup() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const API = API_BASE_URL;
 
   //////////////////////////////////////////////////////
   // GOOGLE SIGNUP
@@ -38,18 +35,12 @@ function Signup() {
 
       const token = await result.user.getIdToken();
 
-      const res = await axios.post(
-        `${API}/auth/firebase-login`,
+      const res = await axiosInstance.post(
+        "/auth/firebase-login",
         { token },
-        { withCredentials: true }
       );
 
   console.log("Google login success:", res.data);
-
-localStorage.setItem(
-  "token",
-  res.data.token
-);
 
 localStorage.setItem(
   "user",
@@ -96,11 +87,7 @@ navigate("/", { replace: true });
       setLoading(true);
       setError("");
 
-      await axios.post(
-        `${API}/auth/register`,
-        { name, email, password },
-        { withCredentials: true }
-      );
+      await axiosInstance.post("/auth/register", { name, email, password });
 
       navigate("/login");
 

@@ -1,9 +1,11 @@
 import { useEffect,useState } from "react";
-import axiosInstance from "../api/axiosInstance";
+import { useAuth } from "../context/Authcontext";
+import { fetchRecommendedBugs } from "../api/recommendations";
 
 function RecommendedBugs(){
 
 const [bugs,setBugs] = useState([]);
+const { user } = useAuth();
 
 useEffect(()=>{
 
@@ -15,13 +17,14 @@ const fetchRecommendations = async ()=>{
 
 try{
 
-const res = await axiosInstance.get("/recommendations/bugs");
-
-setBugs(res.data);
+const result = await fetchRecommendedBugs(user);
+setBugs(result.bugs);
 
 }catch(err){
 
-console.error("Recommendation fetch error:",err);
+if (err.response?.status !== 401) {
+  console.error("Recommendation fetch error:",err);
+}
 
 }
 
@@ -33,7 +36,9 @@ return(
 
 <h2>Recommended for you</h2>
 
-{bugs.length === 0 ? (
+{!user ? (
+<p>Sign in to see your recommendations.</p>
+) : bugs.length === 0 ? (
 
 <p>No recommendations yet</p>
 

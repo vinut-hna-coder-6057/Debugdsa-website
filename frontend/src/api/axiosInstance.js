@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "../config";
+import { shouldRefreshSession } from "./authRetry";
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -20,7 +21,7 @@ axiosInstance.interceptors.response.use(
 
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (shouldRefreshSession(error)) {
 
       originalRequest._retry = true;
 

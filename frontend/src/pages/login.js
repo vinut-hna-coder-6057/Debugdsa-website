@@ -9,24 +9,17 @@ import {
 useState,
 useEffect
 } from "react";
-import axios from "axios";
-import { API_BASE_URL } from "../config";
+import axiosInstance from "../api/axiosInstance";
 function Login() {
 
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   
 useEffect(()=>{
-
-const token = localStorage.getItem("token");
-
-if(token){
-
+if(user){
 navigate("/");
-
 }
-
-},[]);
+},[user,navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,21 +34,9 @@ credentialResponse
 
 try {
 
-const res = await axios.post(
-
-`${API_BASE_URL}/auth/firebase-login`,
-
-{
-credential:
-credentialResponse.credential
-}
-
-);
-
-localStorage.setItem(
-"token",
-res.data.token
-);
+const res = await axiosInstance.post("/auth/firebase-login", {
+  token: credentialResponse.credential
+});
 
 localStorage.setItem(
 "user",
@@ -80,21 +61,9 @@ response
 
 try {
 
-const res = await axios.post(
-
-`${API_BASE_URL}/auth/firebase-login`,
-
-{
-credential:
-response.credential
-}
-
-);
-
-localStorage.setItem(
-"token",
-res.data.token
-);
+const res = await axiosInstance.post("/auth/firebase-login", {
+  token: response.credential
+});
 
 localStorage.setItem(
 "user",

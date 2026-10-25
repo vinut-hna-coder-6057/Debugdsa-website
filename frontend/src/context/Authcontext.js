@@ -5,17 +5,10 @@ import {
   useState
 } from "react";
 
-import axios from "axios";
-
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { API_BASE_URL } from "../config";
-
-////////////////////////////////////////////////////////////
-// AXIOS CONFIG
-////////////////////////////////////////////////////////////
-
-axios.defaults.withCredentials = true;
+import axiosInstance from "../api/axiosInstance";
+import { restoreSessionUser } from "../api/authSession";
 
 ////////////////////////////////////////////////////////////
 
@@ -27,71 +20,26 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(true);
 
-  const API = API_BASE_URL;
-
   ////////////////////////////////////////////////////////////
   // LOAD USER
   ////////////////////////////////////////////////////////////
 
   useEffect(() => {
-
-    const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
-
-      setUser(JSON.parse(storedUser));
-
-      setLoading(false);
-
-      return;
-
-    }
-
     const loadUser = async () => {
-
       try {
-
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-
-          setLoading(false);
-
-          return;
-
+        let cachedUser = null;
+        try {
+          cachedUser = JSON.parse(localStorage.getItem("user") || "null");
+        } catch {
+          localStorage.removeItem("user");
         }
-
-        const res = await axios.get(
-          `${API}/users/me`
-        );
-
-        setUser(res.data.user);
-
-        localStorage.setItem(
-          "user",
-          JSON.stringify(res.data.user)
-        );
-
-      } catch (err) {
-
-        console.log("User not logged in");
-
-        localStorage.removeItem("token");
-
-        localStorage.removeItem("user");
-
-        setUser(null);
-
+        const restoredUser = await restoreSessionUser(cachedUser, axiosInstance, localStorage);
+        setUser(restoredUser);
       } finally {
-
         setLoading(false);
-
       }
-
     };
-
     loadUser();
-
   }, []);
 
   ////////////////////////////////////////////////////////////
@@ -102,22 +50,12 @@ export const AuthProvider = ({ children }) => {
 
     try {
 
-      const res = await axios.post(
-        `${API}/auth/login`,
+      const res = await axiosInstance.post(
+        "/auth/login",
         {
           email,
           password
-        },
-        {
-          headers: {
-            "Content-Type": "application/json"
-          }
         }
-      );
-
-      localStorage.setItem(
-        "token",
-        res.data.token
       );
 
       localStorage.setItem(
@@ -150,9 +88,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
 
-      const res = await axios.get(
-        `${API}/users/me`
-      );
+      const res = await axiosInstance.get("/users/me");
 
       setUser(res.data.user);
 
@@ -174,6 +110,12 @@ export const AuthProvider = ({ children }) => {
   ////////////////////////////////////////////////////////////
 
   const logout = async () => {
+
+    try {
+      await axiosInstance.post("/auth/logout");
+    } catch (err) {
+      console.log("Backend session logout could not be confirmed");
+    }
 
     try {
 

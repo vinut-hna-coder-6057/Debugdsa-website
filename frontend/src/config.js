@@ -6,12 +6,12 @@ const browserIsLocal = isLocalHost(browserHost);
 let API_ORIGIN = "";
 let API_CONFIG_ERROR = "";
 
-if (!rawApiOrigin) {
-  if (browserIsLocal) {
-    API_ORIGIN = "http://localhost:5000";
-  } else {
-    API_CONFIG_ERROR = "REACT_APP_API is missing. Set it to the deployed backend origin in the frontend hosting build environment, then rebuild the frontend.";
-  }
+if (!browserIsLocal && typeof window !== "undefined") {
+  // Production traffic stays same-origin; Vercel proxies /api to Render so
+  // HttpOnly session cookies remain first-party in the browser.
+  API_ORIGIN = window.location.origin;
+} else if (!rawApiOrigin) {
+  API_ORIGIN = "http://localhost:5000";
 } else {
   try {
     const url = new URL(rawApiOrigin);

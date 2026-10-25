@@ -1,5 +1,5 @@
 import { search } from "../retrieval/vectorStore.js";
-import { generateResponse } from "../llm/llmClient.js";
+import { AIServiceError, generateResponse, logMalformedProviderResponse } from "../llm/llmClient.js";
 
 const SYSTEM_PROMPT = `
 You are the DebugDSA AI Debug Coach.
@@ -506,7 +506,12 @@ ${untrustedData}
         systemPrompt: SYSTEM_PROMPT,
         userPrompt: `${userPrompt}\n\nRewrite your response. The previous output was rejected because it did not follow the required four-field prose format. Make the hint one question, and make the debugging step an observation rather than an edit.`,
       });
-      return normalizeHint(JSON.parse(retryResponse));
+      try {
+        return normalizeHint(JSON.parse(retryResponse));
+      } catch {
+        logMalformedProviderResponse();
+        throw new AIServiceError("invalid_response", "The AI service returned an invalid response.");
+      }
     }
   } catch (error) {
     if (throwOnFailure) throw error;

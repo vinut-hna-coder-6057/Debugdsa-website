@@ -3,9 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Editor from "@monaco-editor/react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
 import { useAuth } from "../context/Authcontext";
-import { getAIRequestValidationError } from "../api/aiRequest";
+import { postAIDebugRequest } from "../api/aiRequest";
 
 
 function ViewBug() {
@@ -77,12 +76,16 @@ const { refreshUser } = useAuth();
         error: bug.error,
         expectedOutput: bug.expectedOutput,
       };
-      const validationError = getAIRequestValidationError(payload);
-      if (validationError) {
-        setCoachError(validationError);
+      const response = await postAIDebugRequest(user, payload, { signal: controller.signal });
+      if (response.status === "unauthenticated") {
+        setCoachError("Sign in to use the AI Debug Coach.");
         return;
       }
-      const { data } = await axiosInstance.post("/ai/debug", payload, { signal: controller.signal });
+      if (response.status === "invalid") {
+        setCoachError(response.error);
+        return;
+      }
+      const { data } = response;
       if (!data || ["diagnosis", "hint", "concept", "debuggingStep"].some((field) => typeof data[field] !== "string")) {
         throw new Error("Invalid AI response");
       }
@@ -359,9 +362,10 @@ err.response?.data?.message ||
         <section aria-label="Debug Coach" style={coachPanel}>
           <strong>Debug Coach</strong>
           <p style={{ margin: "6px 0 10px", color: "#cbd5e1" }}>Get a code-grounded hint to help investigate this bug.</p>
-          <button type="button" style={runBtn} onClick={requestCoachHelp} disabled={coachLoading}>
-            {coachLoading ? "Thinking…" : coachResult ? "Try again" : "Ask for a hint"}
+          <button type="button" style={runBtn} onClick={requestCoachHelp} disabled={coachLoading || !user}>
+            {!user ? "Sign in for a hint" : coachLoading ? "Thinking…" : coachResult ? "Try again" : "Ask for a hint"}
           </button>
+          {!user && <p>AI debugging is available to signed-in users.</p>}
           {coachError && <p role="alert" style={{ color: "#fca5a5" }}>{coachError}</p>}
           {coachLoading && <p role="status">The coach is analyzing the code. This can take a little while on the first request.</p>}
           {coachResult && <div aria-live="polite" style={coachResultBox}>

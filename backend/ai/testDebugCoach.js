@@ -5,8 +5,10 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-import { getDebuggingHint } from "../controllers/aiController.js";
+import { AI_DEBUG_FIELD_LIMITS, AI_DEBUG_LANGUAGES, getDebuggingHint, getDebugRequestValidationDiagnostic, getDebugRequestValidationError } from "../controllers/aiController.js";
 import aiRoutes from "../routes/aiRoutes.js";
+import recommendationRoutes from "../routes/recommendationRoutes.js";
+import Bug from "../models/Bug.js";
 import { protect } from "../middleware/authMiddleware.js";
 import {
   initializeVectorStore,
@@ -16,6 +18,7 @@ import {
   getEmbeddingCachePath,
 } from "./retrieval/vectorStore.js";
 import { normalizeEmbeddingText } from "./embeddings/embeddingService.js";
+import { AIServiceError } from "./llm/llmClient.js";
 import {
   findInclusiveMatrixColumnBound,
   findUncheckedBinarySearchCandidate,
@@ -526,6 +529,28 @@ assert.match(malformedFallback.diagnosis, /could not generate a reliable diagnos
 assert.match(malformedFallback.hint, /smallest input that reproduces/i);
 assert.equal(Object.keys(malformedFallback).length, 4);
 
+const malformedProviderLogs = [];
+const originalWarn = console.warn;
+console.warn = (line) => malformedProviderLogs.push(JSON.parse(line));
+try {
+  await assert.rejects(
+    getModelHint(
+      { code: "function f() {}", language: "JavaScript" },
+      {
+        searchFn: async () => [],
+        throwOnFailure: true,
+        generateResponseFn: async () => "not json",
+      }
+    ),
+    (error) => error instanceof AIServiceError && error.category === "invalid_response"
+  );
+} finally {
+  console.warn = originalWarn;
+}
+assert.equal(malformedProviderLogs[0].category, "invalid_response");
+assert.equal(malformedProviderLogs[0].status, 200);
+assert.ok(!JSON.stringify(malformedProviderLogs[0]).includes("not json"));
+
 let unavailableCalls = 0;
 const unavailableFallback = await getModelHint(
   {
@@ -591,14 +616,71 @@ await getDebuggingHint(invalidRequest, invalidResponse);
 assert.equal(invalidResponse.statusCode, 400);
 assert.equal(invalidResponse.body.success, false);
 const oversizedResponse = { ...invalidResponse, statusCode: 200, body: null };
-await getDebuggingHint({ body: { code: "x".repeat(16_001), language: "JavaScript" } }, oversizedResponse);
+await getDebuggingHint({ body: { code: "x".repeat(20_001), language: "JavaScript" } }, oversizedResponse);
 assert.equal(oversizedResponse.statusCode, 400);
+assert.deepEqual(oversizedResponse.body, {
+  success: false,
+  error: { code: "INVALID_REQUEST", message: "The code field is invalid or too long." },
+});
+const validationLogs = [];
+const previousWarn = console.warn;
+console.warn = (line) => validationLogs.push(JSON.parse(line));
+const invalidDescriptionResponse = { ...invalidResponse, statusCode: 200, body: null };
+try {
+  await getDebuggingHint({
+    body: { code: "safe", language: "JavaScript", description: `private-${"x".repeat(5_001)}` },
+  }, invalidDescriptionResponse);
+} finally {
+  console.warn = previousWarn;
+}
+assert.equal(invalidDescriptionResponse.statusCode, 400);
+assert.deepEqual(invalidDescriptionResponse.body.error, {
+  code: "INVALID_REQUEST",
+  message: "The description field is invalid or too long.",
+});
+assert.deepEqual(validationLogs[0], {
+  event: "ai.request_rejected",
+  field: "description",
+  reason: "too_long",
+  length: 5_009,
+  limit: 5_000,
+});
+assert.ok(!JSON.stringify(validationLogs).includes("private-"));
+assert.deepEqual(AI_DEBUG_LANGUAGES, Bug.schema.path("language").enumValues);
+for (const field of Object.keys(AI_DEBUG_FIELD_LIMITS)) {
+  assert.equal(AI_DEBUG_FIELD_LIMITS[field], Bug.schema.path(field).options.maxlength, `${field} limit should match the Bug model`);
+}
+for (const language of AI_DEBUG_LANGUAGES) {
+  assert.equal(
+    getDebugRequestValidationError({ code: "function solve() {}", language }),
+    null,
+    `${language} bugs stored by the Bug model should pass AI request validation`
+  );
+}
+assert.equal(
+  getDebugRequestValidationError({ code: "function solve() {}", language: "Rust" }),
+  "Code and a supported language are required."
+);
+assert.equal(
+  getDebugRequestValidationError({ code: "function solve() {}", language: "JavaScript", description: "x".repeat(2_001) }),
+  null
+);
+assert.equal(getDebugRequestValidationError({ code: "x".repeat(20_000), language: "JavaScript", description: "x".repeat(5_000), topic: "x".repeat(100) }), null);
+assert.equal(getDebugRequestValidationError({ code: "x", language: "JavaScript", description: "x".repeat(5_001) }), "The description field is invalid or too long.");
+assert.equal(getDebugRequestValidationError({ code: "x", language: "JavaScript", topic: "x".repeat(101) }), "The topic field is invalid or too long.");
+const privateCodeForDiagnostic = "secret-code-must-not-be-logged";
+const validationDiagnostic = getDebugRequestValidationDiagnostic({ code: privateCodeForDiagnostic, language: "JavaScript", description: "x".repeat(5_001) });
+assert.deepEqual(validationDiagnostic, { field: "description", reason: "too_long", length: 5_001, limit: 5_000 });
+assert.ok(!JSON.stringify(validationDiagnostic).includes(privateCodeForDiagnostic));
 console.log("PASS endpoint input validation");
 
 const debugRoute = aiRoutes.stack.find((layer) => layer.route?.path === "/debug");
 assert.ok(debugRoute, "AI router should register POST /debug");
 assert.equal(debugRoute.route.methods.post, true);
 assert.equal(debugRoute.route.stack[0].handle, protect, "AI route must authenticate before rate limiting and controller work");
+const recommendationRoute = recommendationRoutes.stack.find((layer) => layer.route?.path === "/bugs");
+assert.ok(recommendationRoute, "Recommendation router should register GET /bugs");
+assert.equal(recommendationRoute.route.stack[0].handle, protect, "Recommendations must remain behind authentication");
 const serverSource = await fs.readFile(path.join(here, "../server.js"), "utf8");
 assert.match(serverSource, /app\.use\(["']\/api\/ai["'],\s*aiRoutes\)/, "real server should mount the AI router at /api/ai");
 assert.match(serverSource, /import searchRoutes from ["']\.\/routes\/searchRoutes\.js["']/, "real server should import the existing search router");

@@ -1,8 +1,6 @@
 import axiosInstance from "./axiosInstance";
 
 export async function restoreSessionUser(cachedUser, client = axiosInstance, storage = window.localStorage) {
-  if (!cachedUser) return null;
-
   try {
     const response = await client.get("/users/me");
     const user = response.data.user;
